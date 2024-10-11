@@ -1,0 +1,415 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/24.7.17 Chrome/128.0.6613.36 Electron/32.0.1 Safari/537.36" version="24.7.17">
+  <diagram name="Page-1" id="006dorDLXeMMCW9NQxkb">
+    <mxGraphModel dx="1238" dy="828" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-1" value="Core Libraries" style="shape=table;startSize=30;container=1;collapsible=0;childLayout=tableLayout;strokeColor=#b85450;fontSize=20;fontStyle=1;fillColor=#f8cecc;" parent="1" vertex="1">
+          <mxGeometry x="60" y="370" width="565" height="595" as="geometry" />
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-2" value="" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;strokeColor=inherit;top=0;left=0;bottom=0;right=0;collapsible=0;dropTarget=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-1" vertex="1">
+          <mxGeometry y="30" width="565" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-3" value="&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;/span&gt;Name" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;fontStyle=1" parent="2-FXVYfqP4EHlX_KdQg7-2" vertex="1">
+          <mxGeometry width="135" height="32" as="geometry">
+            <mxRectangle width="135" height="32" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-4" value="Description" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;fontStyle=1" parent="2-FXVYfqP4EHlX_KdQg7-2" vertex="1">
+          <mxGeometry x="135" width="182" height="32" as="geometry">
+            <mxRectangle width="182" height="32" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-5" value="Link" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;fontStyle=1" parent="2-FXVYfqP4EHlX_KdQg7-2" vertex="1">
+          <mxGeometry x="317" width="248" height="32" as="geometry">
+            <mxRectangle width="248" height="32" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-6" value="" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;strokeColor=inherit;top=0;left=0;bottom=0;right=0;collapsible=0;dropTarget=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-1" vertex="1">
+          <mxGeometry y="62" width="565" height="53" as="geometry" />
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-7" value="Tokio" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-6" vertex="1">
+          <mxGeometry width="135" height="53" as="geometry">
+            <mxRectangle width="135" height="53" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-8" value="async runtime" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-6" vertex="1">
+          <mxGeometry x="135" width="182" height="53" as="geometry">
+            <mxRectangle width="182" height="53" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-9" value="https://tokio.rs/" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-6" vertex="1">
+          <mxGeometry x="317" width="248" height="53" as="geometry">
+            <mxRectangle width="248" height="53" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-10" value="" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;strokeColor=inherit;top=0;left=0;bottom=0;right=0;collapsible=0;dropTarget=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-1" vertex="1">
+          <mxGeometry y="115" width="565" height="54" as="geometry" />
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-11" value="Axum" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-10" vertex="1">
+          <mxGeometry width="135" height="54" as="geometry">
+            <mxRectangle width="135" height="54" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-12" value="web server" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-10" vertex="1">
+          <mxGeometry x="135" width="182" height="54" as="geometry">
+            <mxRectangle width="182" height="54" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-13" value="https://crates.io/crates/axum" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-10" vertex="1">
+          <mxGeometry x="317" width="248" height="54" as="geometry">
+            <mxRectangle width="248" height="54" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-14" value="" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;strokeColor=inherit;top=0;left=0;bottom=0;right=0;collapsible=0;dropTarget=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-1" vertex="1">
+          <mxGeometry y="169" width="565" height="53" as="geometry" />
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-15" value="Rust TLS" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-14" vertex="1">
+          <mxGeometry width="135" height="53" as="geometry">
+            <mxRectangle width="135" height="53" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-16" value="secure socket connection" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-14" vertex="1">
+          <mxGeometry x="135" width="182" height="53" as="geometry">
+            <mxRectangle width="182" height="53" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-17" value="https://crates.io/crates/rustls" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-14" vertex="1">
+          <mxGeometry x="317" width="248" height="53" as="geometry">
+            <mxRectangle width="248" height="53" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-18" value="" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;strokeColor=inherit;top=0;left=0;bottom=0;right=0;collapsible=0;dropTarget=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-1" vertex="1">
+          <mxGeometry y="222" width="565" height="53" as="geometry" />
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-19" value="Diesel" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-18" vertex="1">
+          <mxGeometry width="135" height="53" as="geometry">
+            <mxRectangle width="135" height="53" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-20" value="A safe, extensible ORM and Query Builde" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-18" vertex="1">
+          <mxGeometry x="135" width="182" height="53" as="geometry">
+            <mxRectangle width="182" height="53" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-21" value="https://crates.io/crates/diesel" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-18" vertex="1">
+          <mxGeometry x="317" width="248" height="53" as="geometry">
+            <mxRectangle width="248" height="53" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-22" value="" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;strokeColor=inherit;top=0;left=0;bottom=0;right=0;collapsible=0;dropTarget=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-1" vertex="1">
+          <mxGeometry y="275" width="565" height="53" as="geometry" />
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-23" value="&lt;span class=&quot;hljs-attr&quot;&gt;tracing&lt;/span&gt;" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-22" vertex="1">
+          <mxGeometry width="135" height="53" as="geometry">
+            <mxRectangle width="135" height="53" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-24" value="async loging" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-22" vertex="1">
+          <mxGeometry x="135" width="182" height="53" as="geometry">
+            <mxRectangle width="182" height="53" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-25" value="https://crates.io/crates/tracing" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-22" vertex="1">
+          <mxGeometry x="317" width="248" height="53" as="geometry">
+            <mxRectangle width="248" height="53" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-26" value="" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;strokeColor=inherit;top=0;left=0;bottom=0;right=0;collapsible=0;dropTarget=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-1" vertex="1">
+          <mxGeometry y="328" width="565" height="54" as="geometry" />
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-27" value="chrono" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-26" vertex="1">
+          <mxGeometry width="135" height="54" as="geometry">
+            <mxRectangle width="135" height="54" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-28" value="Date and time&amp;nbsp;" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-26" vertex="1">
+          <mxGeometry x="135" width="182" height="54" as="geometry">
+            <mxRectangle width="182" height="54" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-29" value="https://crates.io/crates/chrono" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-26" vertex="1">
+          <mxGeometry x="317" width="248" height="54" as="geometry">
+            <mxRectangle width="248" height="54" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-30" value="" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;strokeColor=inherit;top=0;left=0;bottom=0;right=0;collapsible=0;dropTarget=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-1" vertex="1">
+          <mxGeometry y="382" width="565" height="53" as="geometry" />
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-31" value="serde" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-30" vertex="1">
+          <mxGeometry width="135" height="53" as="geometry">
+            <mxRectangle width="135" height="53" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-32" value="A generic serialization/deserialization" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-30" vertex="1">
+          <mxGeometry x="135" width="182" height="53" as="geometry">
+            <mxRectangle width="182" height="53" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-33" value="https://crates.io/crates/serde" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-30" vertex="1">
+          <mxGeometry x="317" width="248" height="53" as="geometry">
+            <mxRectangle width="248" height="53" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-34" value="" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;strokeColor=inherit;top=0;left=0;bottom=0;right=0;collapsible=0;dropTarget=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-1" vertex="1">
+          <mxGeometry y="435" width="565" height="53" as="geometry" />
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-35" value="serde_json" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-34" vertex="1">
+          <mxGeometry width="135" height="53" as="geometry">
+            <mxRectangle width="135" height="53" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-36" value="A JSON serialization file format" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-34" vertex="1">
+          <mxGeometry x="135" width="182" height="53" as="geometry">
+            <mxRectangle width="182" height="53" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-37" value="https://crates.io/crates/serde_json" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-34" vertex="1">
+          <mxGeometry x="317" width="248" height="53" as="geometry">
+            <mxRectangle width="248" height="53" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-38" value="" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;strokeColor=inherit;top=0;left=0;bottom=0;right=0;collapsible=0;dropTarget=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-1" vertex="1">
+          <mxGeometry y="488" width="565" height="53" as="geometry" />
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-39" value="&lt;div&gt;dotenvy&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-38" vertex="1">
+          <mxGeometry width="135" height="53" as="geometry">
+            <mxRectangle width="135" height="53" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-40" value="A well-maintained fork of the dotenv crate" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-38" vertex="1">
+          <mxGeometry x="135" width="182" height="53" as="geometry">
+            <mxRectangle width="182" height="53" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-41" value="https://crates.io/crates/dotenvy" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-38" vertex="1">
+          <mxGeometry x="317" width="248" height="53" as="geometry">
+            <mxRectangle width="248" height="53" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-42" value="" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;strokeColor=inherit;top=0;left=0;bottom=0;right=0;collapsible=0;dropTarget=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-1" vertex="1">
+          <mxGeometry y="541" width="565" height="54" as="geometry" />
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-43" value="&lt;div&gt;aes-gcm&lt;br&gt;&lt;/div&gt;" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-42" vertex="1">
+          <mxGeometry width="135" height="54" as="geometry">
+            <mxRectangle width="135" height="54" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-44" value="&amp;nbsp;implementation of the AES-GCM" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-42" vertex="1">
+          <mxGeometry x="135" width="182" height="54" as="geometry">
+            <mxRectangle width="182" height="54" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-45" value="https://crates.io/crates/aes-gcm" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-42" vertex="1">
+          <mxGeometry x="317" width="248" height="54" as="geometry">
+            <mxRectangle width="248" height="54" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-46" value="Technologies" style="shape=table;startSize=30;container=1;collapsible=0;childLayout=tableLayout;strokeColor=#6c8ebf;fontSize=20;fontStyle=1;fillColor=#dae8fc;" parent="1" vertex="1">
+          <mxGeometry x="120" y="60" width="565" height="210" as="geometry" />
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-47" value="" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;strokeColor=inherit;top=0;left=0;bottom=0;right=0;collapsible=0;dropTarget=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-46" vertex="1">
+          <mxGeometry y="30" width="565" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-48" value="&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;/span&gt;Name" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;fontStyle=1" parent="2-FXVYfqP4EHlX_KdQg7-47" vertex="1">
+          <mxGeometry width="135" height="30" as="geometry">
+            <mxRectangle width="135" height="30" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-49" value="Description" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;fontStyle=1" parent="2-FXVYfqP4EHlX_KdQg7-47" vertex="1">
+          <mxGeometry x="135" width="182" height="30" as="geometry">
+            <mxRectangle width="182" height="30" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-50" value="Link" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;fontStyle=1" parent="2-FXVYfqP4EHlX_KdQg7-47" vertex="1">
+          <mxGeometry x="317" width="248" height="30" as="geometry">
+            <mxRectangle width="248" height="30" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-51" value="" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;strokeColor=inherit;top=0;left=0;bottom=0;right=0;collapsible=0;dropTarget=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-46" vertex="1">
+          <mxGeometry y="60" width="565" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-52" value="Rust" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-51" vertex="1">
+          <mxGeometry width="135" height="50" as="geometry">
+            <mxRectangle width="135" height="50" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-53" value="bussiness logic" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-51" vertex="1">
+          <mxGeometry x="135" width="182" height="50" as="geometry">
+            <mxRectangle width="182" height="50" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-54" value="https://www.rust-lang.org/" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-51" vertex="1">
+          <mxGeometry x="317" width="248" height="50" as="geometry">
+            <mxRectangle width="248" height="50" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-55" value="" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;strokeColor=inherit;top=0;left=0;bottom=0;right=0;collapsible=0;dropTarget=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-46" vertex="1">
+          <mxGeometry y="110" width="565" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-56" value="Svelte" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-55" vertex="1">
+          <mxGeometry width="135" height="50" as="geometry">
+            <mxRectangle width="135" height="50" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-57" value="Web UI framework" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-55" vertex="1">
+          <mxGeometry x="135" width="182" height="50" as="geometry">
+            <mxRectangle width="182" height="50" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-58" value="https://svelte.dev/" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-55" vertex="1">
+          <mxGeometry x="317" width="248" height="50" as="geometry">
+            <mxRectangle width="248" height="50" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-59" value="" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;strokeColor=inherit;top=0;left=0;bottom=0;right=0;collapsible=0;dropTarget=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-46" vertex="1">
+          <mxGeometry y="160" width="565" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-60" value="PostgreSQL" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-59" vertex="1">
+          <mxGeometry width="135" height="50" as="geometry">
+            <mxRectangle width="135" height="50" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-61" value="secure socket connection" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-59" vertex="1">
+          <mxGeometry x="135" width="182" height="50" as="geometry">
+            <mxRectangle width="182" height="50" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-62" value="https://www.postgresql.org/" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-59" vertex="1">
+          <mxGeometry x="317" width="248" height="50" as="geometry">
+            <mxRectangle width="248" height="50" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-63" value="Additional Libraries" style="shape=table;startSize=30;container=1;collapsible=0;childLayout=tableLayout;strokeColor=#b85450;fontSize=20;fontStyle=1;fillColor=#f8cecc;" parent="1" vertex="1">
+          <mxGeometry x="720" y="380" width="565" height="390" as="geometry" />
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-64" value="" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;strokeColor=inherit;top=0;left=0;bottom=0;right=0;collapsible=0;dropTarget=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-63" vertex="1">
+          <mxGeometry y="30" width="565" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-65" value="&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;/span&gt;Name" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;fontStyle=1" parent="2-FXVYfqP4EHlX_KdQg7-64" vertex="1">
+          <mxGeometry width="135" height="30" as="geometry">
+            <mxRectangle width="135" height="30" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-66" value="Description" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;fontStyle=1" parent="2-FXVYfqP4EHlX_KdQg7-64" vertex="1">
+          <mxGeometry x="135" width="182" height="30" as="geometry">
+            <mxRectangle width="182" height="30" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-67" value="Link" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;fontStyle=1" parent="2-FXVYfqP4EHlX_KdQg7-64" vertex="1">
+          <mxGeometry x="317" width="248" height="30" as="geometry">
+            <mxRectangle width="248" height="30" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-68" value="" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;strokeColor=inherit;top=0;left=0;bottom=0;right=0;collapsible=0;dropTarget=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-63" vertex="1">
+          <mxGeometry y="60" width="565" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-69" value="Tonic" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-68" vertex="1">
+          <mxGeometry width="135" height="50" as="geometry">
+            <mxRectangle width="135" height="50" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-70" value="gRPC" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-68" vertex="1">
+          <mxGeometry x="135" width="182" height="50" as="geometry">
+            <mxRectangle width="182" height="50" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-71" value="https://docs.rs/tonic" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-68" vertex="1">
+          <mxGeometry x="317" width="248" height="50" as="geometry">
+            <mxRectangle width="248" height="50" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-72" value="" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;strokeColor=inherit;top=0;left=0;bottom=0;right=0;collapsible=0;dropTarget=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-63" vertex="1">
+          <mxGeometry y="110" width="565" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-73" value="Metal IO(MIO)" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-72" vertex="1">
+          <mxGeometry width="135" height="50" as="geometry">
+            <mxRectangle width="135" height="50" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-74" value="nonblocking IO API" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-72" vertex="1">
+          <mxGeometry x="135" width="182" height="50" as="geometry">
+            <mxRectangle width="182" height="50" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-75" value="https://crates.io/crates/mio" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-72" vertex="1">
+          <mxGeometry x="317" width="248" height="50" as="geometry">
+            <mxRectangle width="248" height="50" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-76" value="" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;strokeColor=inherit;top=0;left=0;bottom=0;right=0;collapsible=0;dropTarget=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-63" vertex="1">
+          <mxGeometry y="160" width="565" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-77" value="minijinja" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-76" vertex="1">
+          <mxGeometry width="135" height="50" as="geometry">
+            <mxRectangle width="135" height="50" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-78" value="server side rendering" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-76" vertex="1">
+          <mxGeometry x="135" width="182" height="50" as="geometry">
+            <mxRectangle width="182" height="50" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-79" value="https://crates.io/crates/minijinja" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-76" vertex="1">
+          <mxGeometry x="317" width="248" height="50" as="geometry">
+            <mxRectangle width="248" height="50" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-80" value="" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;strokeColor=inherit;top=0;left=0;bottom=0;right=0;collapsible=0;dropTarget=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-63" vertex="1">
+          <mxGeometry y="210" width="565" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-81" value="&lt;span class=&quot;hljs-attr&quot;&gt;log&lt;/span&gt;" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-80" vertex="1">
+          <mxGeometry width="135" height="50" as="geometry">
+            <mxRectangle width="135" height="50" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-82" value="a lightweight logging facade." style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-80" vertex="1">
+          <mxGeometry x="135" width="182" height="50" as="geometry">
+            <mxRectangle width="182" height="50" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-83" value="https://crates.io/crates/log" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-80" vertex="1">
+          <mxGeometry x="317" width="248" height="50" as="geometry">
+            <mxRectangle width="248" height="50" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-84" value="" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;strokeColor=inherit;top=0;left=0;bottom=0;right=0;collapsible=0;dropTarget=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-63" vertex="1">
+          <mxGeometry y="260" width="565" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-85" value="&lt;div&gt;dotenvy&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-84" vertex="1">
+          <mxGeometry width="135" height="50" as="geometry">
+            <mxRectangle width="135" height="50" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-86" value="A well-maintained fork of the dotenv crate" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-84" vertex="1">
+          <mxGeometry x="135" width="182" height="50" as="geometry">
+            <mxRectangle width="182" height="50" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-87" value="https://crates.io/crates/dotenvy" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-84" vertex="1">
+          <mxGeometry x="317" width="248" height="50" as="geometry">
+            <mxRectangle width="248" height="50" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-88" value="" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;strokeColor=inherit;top=0;left=0;bottom=0;right=0;collapsible=0;dropTarget=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-63" vertex="1">
+          <mxGeometry y="310" width="565" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-89" value="&lt;div&gt;chacha20poly1305&lt;br&gt;&lt;/div&gt;" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-88" vertex="1">
+          <mxGeometry width="135" height="80" as="geometry">
+            <mxRectangle width="135" height="80" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-90" value="Pure Rust implementation of the ChaCha20Poly1305" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-88" vertex="1">
+          <mxGeometry x="135" width="182" height="80" as="geometry">
+            <mxRectangle width="182" height="80" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-FXVYfqP4EHlX_KdQg7-91" value="https://crates.io/crates/chacha20poly1305" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=16;" parent="2-FXVYfqP4EHlX_KdQg7-88" vertex="1">
+          <mxGeometry x="317" width="248" height="80" as="geometry">
+            <mxRectangle width="248" height="80" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
