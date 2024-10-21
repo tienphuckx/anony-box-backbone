@@ -1,3 +1,4 @@
+-- Your SQL goes here
 CREATE TYPE MessageType AS ENUM (
   'TEXT',
   'ATTACHMENT'
@@ -82,16 +83,3 @@ ALTER TABLE "messages" ADD FOREIGN KEY ("user_id") REFERENCES "users" ("id");
 ALTER TABLE "messages" ADD FOREIGN KEY ("group_id") REFERENCES "groups" ("id");
 
 ALTER TABLE "attachments" ADD FOREIGN KEY ("message_id") REFERENCES "messages" ("id");
-
-
-
-
-DROP TYPE IF EXISTS AttachmentType;
-DROP TYPE IF EXISTS MessageType;
-
-DROP TABLE IF EXISTS attachments;
-DROP TABLE IF EXISTS messages;
-DROP TABLE IF EXISTS waiting_list;
-DROP TABLE IF EXISTS participants;
-DROP TABLE IF EXISTS groups;
-DROP TABLE IF EXISTS users;
