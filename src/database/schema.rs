@@ -1,13 +1,13 @@
 // @generated automatically by Diesel CLI.
 
 pub mod sql_types {
-    #[derive(diesel::query_builder::QueryId, Clone, diesel::sql_types::SqlType)]
-    #[diesel(postgres_type(name = "attachmenttype"))]
-    pub struct Attachmenttype;
+  #[derive(diesel::query_builder::QueryId, Clone, diesel::sql_types::SqlType)]
+  #[diesel(postgres_type(name = "attachmenttype"))]
+  pub struct Attachmenttype;
 
-    #[derive(diesel::query_builder::QueryId, Clone, diesel::sql_types::SqlType)]
-    #[diesel(postgres_type(name = "messagetype"))]
-    pub struct Messagetype;
+  #[derive(diesel::query_builder::QueryId, Clone, diesel::sql_types::SqlType)]
+  #[diesel(postgres_type(name = "messagetype"))]
+  pub struct Messagetype;
 }
 
 diesel::table! {
@@ -34,6 +34,7 @@ diesel::table! {
         approval_require -> Nullable<Bool>,
         created_at -> Nullable<Timestamp>,
         expired_at -> Nullable<Timestamp>,
+        maximum_members -> Nullable<Int4>,
     }
 }
 
@@ -90,10 +91,10 @@ diesel::joinable!(waiting_list -> groups (group_id));
 diesel::joinable!(waiting_list -> users (user_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
-    attachments,
-    groups,
-    messages,
-    participants,
-    users,
-    waiting_list,
+  attachments,
+  groups,
+  messages,
+  participants,
+  users,
+  waiting_list,
 );

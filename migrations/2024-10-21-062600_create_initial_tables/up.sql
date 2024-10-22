@@ -13,7 +13,7 @@ CREATE TYPE AttachmentType AS ENUM (
 
 CREATE TABLE "users" (
   "id" SERIAL PRIMARY KEY,
-  "username" varchar(255) NOT NULL,
+  "username" varchar(255) NOT NULL UNIQUE,
   "user_code" varchar(255) NOT NULL,
   "created_at" timestamp NOT NULL
 );
@@ -24,6 +24,7 @@ CREATE TABLE "groups" (
   "group_code" varchar(255) NOT NULL,
   "user_id" integer NOT NULL,
   "approval_require" bool DEFAULT true,
+  "maximum_members" integer DEFAULT 30,
   "created_at" timestamp,
   "expired_at" timestamp
 );
