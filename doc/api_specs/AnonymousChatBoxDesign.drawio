@@ -1,0 +1,227 @@
+{
+	"info": {
+		"_postman_id": "85238787-d82f-4199-9df4-da58ef2c6c42",
+		"name": "AnonymousChat",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "28234431"
+	},
+	"item": [
+		{
+			"name": "new-group",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"username\": \"thanhnguyen\",\n    \"group_name\": \"Microsoft UBC\",\n    \"duration\": 120,\n    \"maximum_members\": 100,\n    \"approval_require\":  true\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "127.0.0.1:8080/new-group",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "8080",
+					"path": [
+						"new-group"
+					]
+				}
+			},
+			"response": [
+				{
+					"name": "new-group",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"thanhnguyen\",\n    \"group_name\": \"Microsoft UBC\",\n    \"duration\": 120,\n    \"maximum_members\": 100,\n    \"approval_require\":  true\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "127.0.0.1:8080/new-group",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8080",
+							"path": [
+								"new-group"
+							]
+						}
+					},
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "Content-Type",
+							"value": "application/json",
+							"name": "Content-Type",
+							"description": "",
+							"type": "text"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"user_id\": 20,\n    \"username\": \"thanhnguyen\",\n    \"user_code\": \"C4278887EF9B712FBBA5AA57C3BEE12EFF6F6799FAE7A3B69B358A9AFAC9362C\",\n    \"group_id\": 14,\n    \"group_name\": \"Microsoft UBC\",\n    \"group_code\": \"7F18AC3E9EFE8931870D811513928049D29CA3352C19DEE8412AE6C3D12EBD2B\",\n    \"expired_at\": \"2024-10-23 03:47:50.924297 UTC\"\n}"
+				}
+			]
+		},
+		{
+			"name": "join-group",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"group_code\": \"7F18AC3E9EFE8931870D811513928049D29CA3352C19DEE8412AE6C3D12EBD2B\",\n    \"username\": \"linhnguyen\",\n    \"user_code\": \"C4278887EF9B712FBBA5AA57C3BEE12EFF6F6799FAE7A3B69B358A9AFAC9362C\",\n    \"message\": \"Hello I want to join a group, please help me approve my request\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "127.0.0.1:8080/join-group",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "8080",
+					"path": [
+						"join-group"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "get-messages",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "127.0.0.1:8080/groups/:id/messages",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "8080",
+					"path": [
+						"groups",
+						":id",
+						"messages"
+					],
+					"variable": [
+						{
+							"key": "id",
+							"value": ""
+						}
+					]
+				},
+				"description": "{\n\n\"user\": \"hoanglinH\"\n\n}"
+			},
+			"response": []
+		},
+		{
+			"name": "get-groups",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "user_code: code this is a user code",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "127.0.0.1:8080/groups",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "8080",
+					"path": [
+						"groups"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "home",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "127.0.0.1:8080/home",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "8080",
+					"path": [
+						"home"
+					]
+				}
+			},
+			"response": [
+				{
+					"name": "home",
+					"originalRequest": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "127.0.0.1:8080/home",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "8080",
+							"path": [
+								"home"
+							]
+						}
+					},
+					"_postman_previewlanguage": null,
+					"header": null,
+					"cookie": [],
+					"body": "hello this is example"
+				}
+			]
+		}
+	]
+}
