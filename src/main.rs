@@ -21,7 +21,7 @@ pub struct AppState {
 }
 pub fn init_router() -> Router<Arc<AppState>> {
   Router::new()
-    .route("/home", get(handlers::hello))
+    .route("/home", get(handlers::home))
     .route("/new-group", post(handlers::create_group))
 }
 

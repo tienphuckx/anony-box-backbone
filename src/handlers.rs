@@ -15,7 +15,7 @@ use crate::{
   AppState,
 };
 
-pub async fn hello() -> &'static str {
+pub async fn home() -> &'static str {
   "Hello this is anonymous home page"
 }
 
@@ -54,8 +54,10 @@ pub async fn create_group(
       .returning(models::Group::as_returning())
       .get_result::<models::Group>(conn)?;
     let group_rs = GroupResult {
+      user_id: user_result.id,
       username: user_result.username,
       user_code: user_result.user_code,
+      group_id: group_result.id,
       group_name: group_result.name,
       group_code: group_result.group_code,
       expired_at: group_result.expired_at.unwrap().and_utc().to_string(),

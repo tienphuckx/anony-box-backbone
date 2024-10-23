@@ -19,8 +19,10 @@ impl NewGroupForm {
 
 #[derive(Serialize, Default)]
 pub struct GroupResult {
+  pub user_id: i32,
   pub username: String,
   pub user_code: String,
+  pub group_id: i32,
   pub group_name: String,
   pub group_code: String,
   pub expired_at: String,
