@@ -14,7 +14,16 @@ use diesel::{
 };
 use dotenvy::dotenv;
 use tokio::net::TcpListener;
+use tracing::level_filters::LevelFilter;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 use utils::constants::*;
+
+fn config_logging() {
+  let directives = format!("{level}", level = LevelFilter::DEBUG);
+  let filter = EnvFilter::new(directives);
+  let registry = tracing_subscriber::registry().with(filter);
+  registry.with(tracing_subscriber::fmt::layer()).init();
+}
 
 pub struct AppState {
   pub db_pool: Pool<ConnectionManager<PgConnection>>,
@@ -27,6 +36,7 @@ pub fn init_router() -> Router<Arc<AppState>> {
 
 #[tokio::main]
 async fn main() {
+  config_logging();
   dotenv().ok();
   let database_url = env::var("DATABASE_URL").expect("Database url must be set");
   let server_address = env::var("SERVER_ADDRESS").unwrap_or(DEFAULT_SERVER_ADDRESS.to_string());
@@ -50,9 +60,10 @@ async fn main() {
   let app_state = Arc::new(AppState { db_pool });
   let app = init_router().with_state(app_state);
 
-  let listener = TcpListener::bind((server_address, server_port))
+  let listener = TcpListener::bind((server_address.as_str(), server_port))
     .await
     .expect("Cannot listen on address");
-  println!("Server is listening on port {}", server_port);
+  tracing::info!("Server is listening on {}:{}", server_address, server_port);
+  // println!("Server is listening on port {}", server_port);
   axum::serve(listener, app).await.unwrap();
 }

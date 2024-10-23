@@ -16,6 +16,7 @@ use crate::{
 };
 
 pub async fn home() -> &'static str {
+  tracing::debug!("New request to /home");
   "Hello this is anonymous home page"
 }
 
@@ -23,6 +24,7 @@ pub async fn create_group(
   State(app_state): State<Arc<AppState>>,
   Json(new_group_form): Json<NewGroupForm>,
 ) -> AxumResult<(StatusCode, Json<GroupResult>)> {
+  tracing::debug!("New request to /new-group");
   let conn = &mut app_state.db_pool.get().map_err(DBError::ConnectionError)?;
 
   let transaction_rs: Result<GroupResult, diesel::result::Error> = conn.transaction(|conn| {
