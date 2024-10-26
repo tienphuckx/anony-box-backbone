@@ -1,10 +1,19 @@
 # Backbone Api for Anonychatbox 
 An anonymous chatting web
 
-# flow
-## Start app
-    - config_logging() : setting logging
-    - dotenv()  load config from file .env ( DATABASE_URL, SERVER_ADDRESS, SERVER_PORT, và MAXIMUM_POOL_SIZE )
-    - Connect to database
-    - Listion on port 8080
+# flow how to create a new table
+## create table in ./migrations
+     ex. 2024-10-26-create-table-xyz
+## create file up.sql and down.sql
+    ...
+## run
+     source .env
+     diesel migration run
+## config table map for new table in 
+    ./src/database/schema.rs
+## create model map for new table in ./src/database/models.rs
+    ...
+## create request payload in ./src/payloads/ 
+    ...
+## now ready to use from /handles.
 
