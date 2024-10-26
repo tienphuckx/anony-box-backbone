@@ -2,12 +2,17 @@ use axum::{extract::State, Json};
 use crate::database::schema::{messages_text, participants};
 use crate::errors::DBError;
 use crate::payloads::common::CommonResponse;
-use crate::payloads::messages::{SendMessageRequest, SendMessageResponse};
+use crate::payloads::messages::{MessageWithUser, SendMessageRequest, SendMessageResponse};
 use crate::AppState;
 use diesel::prelude::*;
 use std::sync::Arc;
-use chrono::Utc;
+use chrono::{Utc};
 use crate::database::models::NewMessageText;
+use crate::database::schema::{ users};
+// use crate::database::models::{MessageText, User};
+
+use crate::payloads::messages::{GetMessagesRequest, GetMessagesResponse, MessageResponse};
+
 
 pub async fn send_msg(
     State(app_state): State<Arc<AppState>>,
@@ -62,4 +67,53 @@ pub async fn send_msg(
     };
 
     Ok(Json(CommonResponse::success(response)))
+}
+
+
+
+
+
+pub async fn get_latest_messages(
+    State(app_state): State<Arc<AppState>>,
+    Json(request): Json<GetMessagesRequest>,
+) -> Result<Json<GetMessagesResponse>, DBError> {
+    let conn = &mut app_state.db_pool.get().map_err(DBError::ConnectionError)?;
+
+    // Query the latest 10 messages for the specified group with a join to include user information
+    let messages = messages_text::table
+        .inner_join(users::table.on(users::id.eq(messages_text::user_id)))
+        .filter(messages_text::group_id.eq(request.group_id))
+        .order(messages_text::created_at.desc())
+        .limit(10)
+        .select((
+            messages_text::id,
+            messages_text::content,
+            messages_text::message_type,
+            messages_text::created_at,
+            messages_text::user_id,
+            users::username,
+        ))
+        .load::<MessageWithUser>(conn)
+        .map_err(|err| {
+            tracing::error!("Error querying messages with user info: {:?}", err);
+            DBError::QueryError("Error querying messages".to_string())
+        })?;
+
+    // Transform the query result into the response structure
+    let messages_response = messages
+        .into_iter()
+        .map(|message| MessageResponse {
+            id: message.id,
+            content: message.content,
+            message_type: message.message_type,
+            created_at: message.created_at,
+            user_id: message.user_id,
+            user_name: message.user_name,
+        })
+        .collect();
+
+    // Return the response
+    Ok(Json(GetMessagesResponse {
+        messages: messages_response,
+    }))
 }
