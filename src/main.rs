@@ -4,6 +4,8 @@ mod errors;
 mod handlers;
 mod payloads;
 mod utils;
+mod msg_handlers;
+
 use axum::{
   routing::{get, post},
   Router,
@@ -36,6 +38,7 @@ pub fn init_router() -> Router<Arc<AppState>> {
     .route("/gr/list/:user_id", get(handlers::get_user_groups))
     .route("/add-user", post(handlers::add_user)) //first: create a new user
     .route("/create-group", post(handlers::create_group_with_user)) // second: create a new group by user id
+    .route("/send-msg", post(msg_handlers::send_msg))
 }
 
 #[tokio::main]

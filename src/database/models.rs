@@ -48,3 +48,29 @@ pub struct NewGroup<'a> {
   pub created_at: NaiveDateTime,
   pub expired_at: NaiveDateTime,
 }
+
+
+// Define the MessageText struct for the messages_text table
+#[derive(Queryable, Identifiable, Associations, Debug)]
+#[diesel(belongs_to(User))]
+#[diesel(belongs_to(Group))]
+#[diesel(table_name = crate::database::schema::messages_text)]
+pub struct MessageText {
+  pub id: i32,
+  pub content: Option<String>,        // Nullable content in the database
+  pub message_type: String,           // Stored as Varchar
+  pub created_at: NaiveDateTime,
+  pub user_id: i32,
+  pub group_id: i32,
+}
+
+// Define NewMessageText struct for inserting new messages into messages_text table
+#[derive(Insertable)]
+#[diesel(table_name = crate::database::schema::messages_text)]
+pub struct NewMessageText<'a> {
+  pub content: Option<&'a str>,       // Content can be nullable
+  pub message_type: &'a str,          // Store type as Varchar directly
+  pub created_at: NaiveDateTime,
+  pub user_id: i32,
+  pub group_id: i32,
+}
