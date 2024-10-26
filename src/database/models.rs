@@ -57,8 +57,8 @@ pub struct NewGroup<'a> {
 #[diesel(table_name = crate::database::schema::messages_text)]
 pub struct MessageText {
   pub id: i32,
-  pub content: Option<String>,        // Nullable content in the database
-  pub message_type: String,           // Stored as Varchar
+  pub content: Option<String>,
+  pub message_type: String,
   pub created_at: NaiveDateTime,
   pub user_id: i32,
   pub group_id: i32,
@@ -68,8 +68,8 @@ pub struct MessageText {
 #[derive(Insertable)]
 #[diesel(table_name = crate::database::schema::messages_text)]
 pub struct NewMessageText<'a> {
-  pub content: Option<&'a str>,       // Content can be nullable
-  pub message_type: &'a str,          // Store type as Varchar directly
+  pub content: Option<&'a str>,
+  pub message_type: &'a str,
   pub created_at: NaiveDateTime,
   pub user_id: i32,
   pub group_id: i32,

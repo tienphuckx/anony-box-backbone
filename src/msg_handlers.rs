@@ -9,8 +9,6 @@ use std::sync::Arc;
 use chrono::{Utc};
 use crate::database::models::NewMessageText;
 use crate::database::schema::{ users};
-// use crate::database::models::{MessageText, User};
-
 use crate::payloads::messages::{GetMessagesRequest, GetMessagesResponse, MessageResponse};
 
 
@@ -18,6 +16,7 @@ pub async fn send_msg(
     State(app_state): State<Arc<AppState>>,
     Json(msg_req): Json<SendMessageRequest>,
 ) -> Result<Json<CommonResponse<SendMessageResponse>>, DBError> {
+    tracing::debug!("POST: /send-msg");
     let conn = &mut app_state.db_pool.get().map_err(DBError::ConnectionError)?;
 
     // Check if the user is part of the group
@@ -70,16 +69,16 @@ pub async fn send_msg(
 }
 
 
-
-
-
+/*
+    Get list latest messages by group_id
+    Query the latest 10 messages for the specified group with a join to include user information
+ */
 pub async fn get_latest_messages(
     State(app_state): State<Arc<AppState>>,
     Json(request): Json<GetMessagesRequest>,
 ) -> Result<Json<GetMessagesResponse>, DBError> {
+    tracing::debug!("POST: /get-latest-messages");
     let conn = &mut app_state.db_pool.get().map_err(DBError::ConnectionError)?;
-
-    // Query the latest 10 messages for the specified group with a join to include user information
     let messages = messages_text::table
         .inner_join(users::table.on(users::id.eq(messages_text::user_id)))
         .filter(messages_text::group_id.eq(request.group_id))
@@ -99,7 +98,7 @@ pub async fn get_latest_messages(
             DBError::QueryError("Error querying messages".to_string())
         })?;
 
-    // Transform the query result into the response structure
+    // build response
     let messages_response = messages
         .into_iter()
         .map(|message| MessageResponse {
@@ -112,7 +111,6 @@ pub async fn get_latest_messages(
         })
         .collect();
 
-    // Return the response
     Ok(Json(GetMessagesResponse {
         messages: messages_response,
     }))

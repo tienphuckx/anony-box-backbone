@@ -1,5 +1,13 @@
 use serde::{Deserialize, Serialize, Serializer};
 
+fn serialize_naive_datetime<S>(datetime: &NaiveDateTime, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let s = datetime.format("%Y-%m-%d %H:%M:%S").to_string();
+    serializer.serialize_str(&s)
+}
+
 // Request structure for sending a message
 #[derive(Deserialize)]
 pub struct SendMessageRequest {
@@ -29,13 +37,6 @@ pub struct GetMessagesRequest {
     pub group_id: i32,
 }
 
-fn serialize_naive_datetime<S>(datetime: &NaiveDateTime, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    let s = datetime.format("%Y-%m-%d %H:%M:%S").to_string();
-    serializer.serialize_str(&s)
-}
 
 #[derive(Serialize)]
 pub struct MessageResponse {
@@ -53,17 +54,6 @@ pub struct MessageResponse {
 pub struct GetMessagesResponse {
     pub messages: Vec<MessageResponse>,
 }
-
-// #[derive(Queryable, Serialize)]
-// pub struct MessageWithUser {
-//     pub id: i32,
-//     pub content: Option<String>,
-//     pub message_type: String,
-//     pub created_at: NaiveDateTime,
-//     pub user_id: i32,
-//     pub user_name: String,
-//     pub user_avatar: Option<String>,
-// }
 
 #[derive(Queryable, Serialize, Debug)]
 pub struct MessageWithUser {
