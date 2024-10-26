@@ -20,7 +20,7 @@ use tokio::net::TcpListener;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 use utils::constants::*;
-use crate::msg_handlers::get_latest_messages;
+use crate::msg_handlers::{get_latest_messages, get_latest_messages_by_code};
 
 fn config_logging() {
   let directives = format!("{level}", level = LevelFilter::DEBUG);
@@ -41,6 +41,7 @@ pub fn init_router() -> Router<Arc<AppState>> {
     .route("/create-group", post(handlers::create_group_with_user)) // second: create a new group by user id
     .route("/send-msg", post(msg_handlers::send_msg))
       .route("/get-latest-messages", post(get_latest_messages))
+      .route("/get-latest-messages/:group_code", get(get_latest_messages_by_code))
 }
 
 #[tokio::main]
