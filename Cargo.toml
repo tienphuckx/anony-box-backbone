@@ -6,8 +6,10 @@ edition = "2021"
 [dependencies]
 tokio = { version = "1.40.0", features = ["full"] }
 axum = "0.7.7"
+axum-extra = {version = "0.9.4", features = ["cookie"]}
 r2d2 = "0.8.10"
 diesel = { version = "2.2.4", features = ["postgres", "r2d2", "chrono"] }
+time = "0.3.36"
 chrono = "0.4.38"
 dotenvy = "0.15.7"
 serde = { version = "1.0.210", features = ["derive"] }

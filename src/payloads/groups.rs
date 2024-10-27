@@ -28,10 +28,9 @@ pub struct GroupResult {
   pub expired_at: String,
 }
 
-
 /**
-  for api get list gr by user id
- */
+ for api get list gr by user id
+*/
 #[derive(Serialize)]
 pub struct GroupInfo {
   pub group_id: i32,

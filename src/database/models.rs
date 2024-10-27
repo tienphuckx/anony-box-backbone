@@ -49,7 +49,6 @@ pub struct NewGroup<'a> {
   pub expired_at: NaiveDateTime,
 }
 
-
 // Define the MessageText struct for the messages_text table
 #[derive(Queryable, Identifiable, Associations, Debug)]
 #[diesel(belongs_to(User))]
