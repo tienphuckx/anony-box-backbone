@@ -29,12 +29,33 @@ impl IntoResponse for DBError {
 #[allow(dead_code)]
 #[derive(Error, Debug)]
 pub enum ApiError {
+  #[error("The database server has an issue: {0}")]
+  DatabaseError(#[from] r2d2::Error),
+
   #[error("The resource is not found: {0}")]
   NotFound(String),
 
   #[error("The {0} already existed")]
   ExistedResource(String),
 
+  #[error("The user already joined the group")]
+  AlreadyJoined,
+
   #[error("Unknown error")]
   Unknown,
+}
+
+impl IntoResponse for ApiError {
+  fn into_response(self) -> axum::response::Response {
+    return match self {
+      Self::NotFound(_) => (StatusCode::NOT_FOUND, self.to_string()),
+      Self::AlreadyJoined => (StatusCode::BAD_REQUEST, self.to_string()),
+      Self::ExistedResource(_) => (StatusCode::BAD_REQUEST, self.to_string()),
+      _ => (
+        StatusCode::SERVICE_UNAVAILABLE,
+        "Service unavailable".to_string(),
+      ),
+    }
+    .into_response();
+  }
 }

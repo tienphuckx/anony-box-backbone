@@ -27,6 +27,11 @@ pub struct GroupResult {
   pub group_code: String,
   pub expired_at: String,
 }
+#[derive(Deserialize)]
+pub struct JoinGroupForm {
+  pub group_code: String,
+  pub username: String,
+}
 
 /**
  for api get list gr by user id

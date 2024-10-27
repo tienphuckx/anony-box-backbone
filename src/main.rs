@@ -37,6 +37,7 @@ pub fn init_router() -> Router<Arc<AppState>> {
   Router::new()
     .route("/", get(handlers::home))
     .route("/add-user-group", post(handlers::create_user_and_group)) // this api add new a user and new gr
+    .route("/join-group", post(handlers::join_group))
     .route("/gr/list/:user_id", get(handlers::get_user_groups))
     .route("/add-user", post(handlers::add_user)) //first: create a new user
     .route("/create-group", post(handlers::create_group_with_user)) // second: create a new group by user id

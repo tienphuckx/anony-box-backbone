@@ -11,7 +11,7 @@ use time::OffsetDateTime;
 
 use crate::database::models::{Group, NewGroup, User};
 use crate::database::{models, schema};
-use crate::errors::DBError;
+use crate::errors::{ApiError, DBError};
 
 use crate::services::user::{create_user, get_user_by_code};
 use crate::utils::crypto::generate_secret_code;
@@ -22,7 +22,7 @@ use crate::{
 };
 
 use crate::database::schema::{groups, participants, users};
-use crate::payloads::groups::{GroupInfo, GroupListResponse};
+use crate::payloads::groups::{GroupInfo, GroupListResponse, JoinGroupForm};
 use axum::extract::Path;
 use diesel::prelude::*;
 
@@ -121,6 +121,42 @@ pub async fn create_user_and_group(
 
   let new_jar = cookie_jar.add(user_code_cookie);
   Ok((new_jar, Json(group_rs)))
+}
+
+pub async fn join_group(
+  State(app_state): State<Arc<AppState>>,
+  cookie_jar: CookieJar,
+  Json(join_group_form): Json<JoinGroupForm>,
+) -> Result<(), ApiError> {
+  let conn = &mut app_state.db_pool.get().map_err(ApiError::DatabaseError)?;
+  let transaction_rs: Result<Option<()>, diesel::result::Error> = conn.transaction(|conn| {
+    let mut user: Option<models::User> = None;
+    let mut is_new_user = true;
+
+    if let Some(user_code_cookie) = cookie_jar.get("user_code") {
+      let user_code = user_code_cookie.value();
+      tracing::debug!("user_code: {}", user_code);
+      if let Some(found_user) = get_user_by_code(conn, user_code)? {
+        tracing::debug!("Found user from database via user_code");
+        is_new_user = false;
+        user = Some(found_user);
+      }
+    }
+    if is_new_user {
+      user = Some(create_user(conn, &join_group_form.username)?);
+    }
+    let user = user.unwrap();
+    use schema::groups::dsl::{group_code, groups};
+    let group = groups
+      .filter(group_code.eq(&join_group_form.group_code))
+      .select(models::Group::as_select())
+      .get_result::<models::Group>(conn)?;
+
+    use schema::participants::dsl::{group_id as p_group_id, participants, user_id as p_user_id};
+    Ok(Some(()))
+  });
+
+  Ok(())
 }
 
 /**
