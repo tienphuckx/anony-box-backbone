@@ -3,9 +3,11 @@ mod database;
 mod errors;
 mod handlers;
 mod msg_handlers;
+mod user_handlers;
 mod payloads;
 mod services;
 mod utils;
+
 
 use axum::{
   routing::{get, post},
@@ -16,12 +18,22 @@ use diesel::{
   PgConnection,
 };
 
+use actix_web::{web, App, HttpServer};
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
+
 use crate::msg_handlers::{get_latest_messages, get_latest_messages_by_code};
 use dotenvy::dotenv;
 use tokio::net::TcpListener;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 use utils::constants::*;
+use crate::user_handlers::add_user_docs;
+use crate::payloads::user::{NewUserRequest, UserResponse}; // Import NewUserRequest and UserResponse
+use crate::payloads::common::CommonResponse; // Import CommonResponse
+
+
+
 
 fn config_logging() {
   let directives = format!("{level}", level = LevelFilter::DEBUG);
@@ -46,38 +58,79 @@ pub fn init_router() -> Router<Arc<AppState>> {
       "/get-latest-messages/:group_code",
       get(get_latest_messages_by_code),
     )
+      .route("/add-user-doc", post(user_handlers::add_user_docs))
 }
 
+// Define Utoipa OpenAPI structure
+#[derive(OpenApi)]
+#[openapi(
+  paths(
+    user_handlers::add_user_docs
+  ),
+  components(schemas(NewUserRequest, UserResponse, CommonResponse<UserResponse>))
+)]
+struct ApiDoc;
+
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), std::io::Error> {
   config_logging();
   dotenv().ok();
-  let database_url = env::var("DATABASE_URL").expect("Database url must be set");
+  let database_url = env::var("DATABASE_URL").expect("Database URL must be set");
   let server_address = env::var("SERVER_ADDRESS").unwrap_or(DEFAULT_SERVER_ADDRESS.to_string());
 
-  let server_port = if let Ok(value) = env::var("SERVER_PORT") {
+  let server_port_actix = if let Ok(value) = env::var("SERVER_PORT") {
     value.parse::<u16>().expect("Server port must be a number")
   } else {
-    DEFAULT_SERVER_PORT
+    8091 // Default Actix port
   };
+
+  let server_port_axum = 8092; // Use a different port for Axum
+
   let pool_size = if let Ok(value) = env::var("MAXIMUM_POOL_SIZE") {
     value.parse::<u32>().expect("Pool size must be a number")
   } else {
     DEFAULT_POOL_SIZE
   };
+
   let manager = ConnectionManager::<PgConnection>::new(database_url);
   let db_pool = r2d2::Pool::builder()
-    .max_size(pool_size)
-    .build(manager)
-    .expect("Failed to create connection pool");
+      .max_size(pool_size)
+      .build(manager)
+      .expect("Failed to create connection pool");
 
   let app_state = Arc::new(AppState { db_pool });
-  let app = init_router().with_state(app_state);
 
-  let listener = TcpListener::bind((server_address.as_str(), server_port))
-    .await
-    .expect("Cannot listen on address");
-  tracing::info!("Server is listening on {}:{}", server_address, server_port);
-  // println!("Server is listening on port {}", server_port);
-  axum::serve(listener, app).await.unwrap();
+  // Clone app_state for Axum and Actix use
+  let app_state_axum = app_state.clone();
+  let app_state_actix = app_state.clone();
+
+  let app = init_router().with_state(app_state_axum);
+
+  // Configure Actix to serve Swagger UI on server_port_actix
+  let actix_server = HttpServer::new(move || {
+    let openapi = ApiDoc::openapi();
+    App::new()
+        .app_data(web::Data::new(app_state_actix.clone())) // Pass shared state
+        .service(SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-doc/openapi.json", openapi))
+  })
+      .bind((server_address.as_str(), server_port_actix))?
+      .run();
+
+  // Set up Axum on server_port_axum
+  let listener = TcpListener::bind((server_address.as_str(), server_port_axum))
+      .await
+      .expect("Cannot listen on address");
+
+  tracing::info!("Actix server is listening on {}:{}", server_address, server_port_actix);
+  tracing::info!("Axum server is listening on {}:{}", server_address, server_port_axum);
+
+  // Run both Axum and Actix servers concurrently
+  tokio::spawn(async move {
+    axum::serve(listener, app).await.unwrap();
+  });
+
+  actix_server.await?;
+  Ok(())
 }
+
+
