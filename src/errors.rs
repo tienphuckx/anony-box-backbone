@@ -1,6 +1,7 @@
 use axum::{http::StatusCode, response::IntoResponse};
-
+use actix_web::{HttpResponse, ResponseError};
 use thiserror::Error;
+use std::fmt;
 
 #[derive(Error, Debug)]
 pub enum DBError {
@@ -26,7 +27,29 @@ impl IntoResponse for DBError {
   }
 }
 
-#[allow(dead_code)]
+// #[allow(dead_code)]
+// #[derive(Error, Debug)]
+// pub enum ApiError {
+//   #[error("The resource is not found: {0}")]
+//   NotFound(String),
+//
+//   #[error("The {0} already existed")]
+//   ExistedResource(String),
+//
+//   #[error("Unknown error")]
+//   Unknown,
+// }
+
+impl ResponseError for DBError {
+  fn error_response(&self) -> HttpResponse {
+    match self {
+      DBError::QueryError(err) => HttpResponse::InternalServerError().json(err),
+      DBError::ConnectionError(err) => HttpResponse::InternalServerError().json(err.to_string()),
+      DBError::ConstraintViolation(err) => HttpResponse::BadRequest().json(err),
+    }
+  }
+}
+
 #[derive(Error, Debug)]
 pub enum ApiError {
   #[error("The resource is not found: {0}")]
@@ -37,4 +60,13 @@ pub enum ApiError {
 
   #[error("Unknown error")]
   Unknown,
+}
+impl ResponseError for ApiError {
+  fn error_response(&self) -> HttpResponse {
+    match self {
+      ApiError::NotFound(err) => HttpResponse::NotFound().json(err),
+      ApiError::ExistedResource(err) => HttpResponse::BadRequest().json(err),
+      ApiError::Unknown => HttpResponse::InternalServerError().json("Unknown error occurred"),
+    }
+  }
 }

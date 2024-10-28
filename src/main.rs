@@ -28,10 +28,12 @@ use tokio::net::TcpListener;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 use utils::constants::*;
+use crate::handlers::get_user_groups;
 use crate::user_handlers::add_user_docs;
 use crate::payloads::user::{NewUserRequest, UserResponse}; // Import NewUserRequest and UserResponse
 use crate::payloads::common::CommonResponse; // Import CommonResponse
 
+use crate::payloads::groups::{GroupListResponse, GroupInfo};
 
 
 
@@ -49,7 +51,6 @@ pub fn init_router() -> Router<Arc<AppState>> {
   Router::new()
     .route("/", get(handlers::home))
     .route("/add-user-group", post(handlers::create_user_and_group)) // this api add new a user and new gr
-    .route("/gr/list/:user_id", get(handlers::get_user_groups))
     .route("/add-user", post(handlers::add_user)) //first: create a new user
     .route("/create-group", post(handlers::create_group_with_user)) // second: create a new group by user id
     .route("/send-msg", post(msg_handlers::send_msg))
@@ -65,9 +66,10 @@ pub fn init_router() -> Router<Arc<AppState>> {
 #[derive(OpenApi)]
 #[openapi(
   paths(
-    user_handlers::add_user_docs
+    user_handlers::add_user_docs,
+    handlers::get_user_groups,
   ),
-  components(schemas(NewUserRequest, UserResponse, CommonResponse<UserResponse>))
+  components(schemas(NewUserRequest, UserResponse, CommonResponse<UserResponse>, GroupListResponse, GroupInfo))
 )]
 struct ApiDoc;
 
@@ -77,14 +79,11 @@ async fn main() -> Result<(), std::io::Error> {
   dotenv().ok();
   let database_url = env::var("DATABASE_URL").expect("Database URL must be set");
   let server_address = env::var("SERVER_ADDRESS").unwrap_or(DEFAULT_SERVER_ADDRESS.to_string());
-
-  let server_port_actix = if let Ok(value) = env::var("SERVER_PORT") {
+  let server_port = if let Ok(value) = env::var("SERVER_PORT") {
     value.parse::<u16>().expect("Server port must be a number")
   } else {
-    8091 // Default Actix port
+    8091
   };
-
-  let server_port_axum = 8092; // Use a different port for Axum
 
   let pool_size = if let Ok(value) = env::var("MAXIMUM_POOL_SIZE") {
     value.parse::<u32>().expect("Pool size must be a number")
@@ -100,37 +99,16 @@ async fn main() -> Result<(), std::io::Error> {
 
   let app_state = Arc::new(AppState { db_pool });
 
-  // Clone app_state for Axum and Actix use
-  let app_state_axum = app_state.clone();
-  let app_state_actix = app_state.clone();
-
-  let app = init_router().with_state(app_state_axum);
-
-  // Configure Actix to serve Swagger UI on server_port_actix
-  let actix_server = HttpServer::new(move || {
+  // Configure Actix server
+  HttpServer::new(move || {
     let openapi = ApiDoc::openapi();
     App::new()
-        .app_data(web::Data::new(app_state_actix.clone())) // Pass shared state
+        .app_data(web::Data::new(app_state.clone()))
         .service(SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-doc/openapi.json", openapi))
+        .route("/gr/list/{user_id}", web::get().to(get_user_groups))
   })
-      .bind((server_address.as_str(), server_port_actix))?
-      .run();
-
-  // Set up Axum on server_port_axum
-  let listener = TcpListener::bind((server_address.as_str(), server_port_axum))
-      .await
-      .expect("Cannot listen on address");
-
-  tracing::info!("Actix server is listening on {}:{}", server_address, server_port_actix);
-  tracing::info!("Axum server is listening on {}:{}", server_address, server_port_axum);
-
-  // Run both Axum and Actix servers concurrently
-  tokio::spawn(async move {
-    axum::serve(listener, app).await.unwrap();
-  });
-
-  actix_server.await?;
+      .bind((server_address.as_str(), server_port))?
+      .run()
+      .await?;
   Ok(())
 }
-
-

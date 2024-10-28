@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use std::time::Duration;
-
+use actix_web::{web, HttpResponse, Responder};
 use axum::{extract::State, Json};
 use axum_extra::extract::cookie::Cookie;
 use axum_extra::extract::CookieJar;
@@ -30,6 +30,7 @@ use crate::payloads::common::CommonResponse;
 use crate::payloads::user::{NewUserRequest, UserResponse};
 
 use crate::payloads::groups::{GroupResponse, NewGroupWithUserIdRequest};
+use utoipa::path;
 
 pub async fn home() -> &'static str {
   tracing::debug!("GET :: /");
@@ -123,15 +124,26 @@ pub async fn create_user_and_group(
   Ok((new_jar, Json(group_rs)))
 }
 
-/**
-   Get list group that created or joined by current user
-   Param: user_id
-*/
+/// Get user groups by user ID
+#[utoipa::path(
+  get,
+  path = "/gr/list/{user_id}",
+  params(
+        ("user_id" = i32, Path, description = "ID of the user to get groups for")
+  ),
+  responses(
+        (status = 200, description = "List of groups the user belongs to", body = GroupListResponse),
+        (status = 404, description = "User not found", body = String),
+        (status = 500, description = "Database connection error", body = String)
+  )
+)]
 pub async fn get_user_groups(
-  State(app_state): State<Arc<AppState>>,
-  Path(user_id): Path<i32>,
-) -> Result<Json<GroupListResponse>, DBError> {
+  app_state: web::Data<Arc<AppState>>,
+  user_id: web::Path<i32>,  // Actix's `web::Path` for the path parameter
+) -> Result<HttpResponse, DBError> {
   tracing::debug!("GET: /gr/list/{}", user_id);
+  let user_id = *user_id;  // Dereference to get the i32 value
+
   let conn = &mut app_state.db_pool.get().map_err(|err| {
     tracing::error!("Failed to get connection from pool: {:?}", err);
     DBError::ConnectionError(err)
@@ -139,70 +151,72 @@ pub async fn get_user_groups(
 
   // Fetch user info
   let user = users::table
-    .find(user_id)
-    .first::<models::User>(conn)
-    .map_err(|err| {
-      tracing::error!("Failed to find user with id {}: {:?}", user_id, err);
-      DBError::QueryError(format!("User not found: {:?}", err))
-    })?;
+      .find(user_id)
+      .first::<models::User>(conn)
+      .map_err(|err| {
+        tracing::error!("Failed to find user with id {}: {:?}", user_id, err);
+        DBError::QueryError(format!("User not found: {:?}", err))
+      })?;
 
   tracing::info!(
-    "User found: user_id = {}, user_code = {}",
-    user.id,
-    user.user_code
-  );
+        "User found: user_id = {}, user_code = {}",
+        user.id,
+        user.user_code
+    );
 
   // Fetch groups that the user is part of
   let user_groups = participants::table
-    .inner_join(groups::table.on(groups::id.eq(participants::group_id)))
-    .filter(participants::user_id.eq(user_id))
-    .select((
-      groups::id,
-      groups::name,
-      groups::group_code,
-      groups::expired_at,
-    ))
-    .load::<(i32, String, String, Option<chrono::NaiveDateTime>)>(conn)
-    .map_err(|err| {
-      tracing::error!("Failed to load groups for user_id {}: {:?}", user_id, err);
-      DBError::QueryError(format!("Error loading groups: {:?}", err))
-    })?;
+      .inner_join(groups::table.on(groups::id.eq(participants::group_id)))
+      .filter(participants::user_id.eq(user_id))
+      .select((
+        groups::id,
+        groups::name,
+        groups::group_code,
+        groups::expired_at,
+      ))
+      .load::<(i32, String, String, Option<chrono::NaiveDateTime>)>(conn)
+      .map_err(|err| {
+        tracing::error!("Failed to load groups for user_id {}: {:?}", user_id, err);
+        DBError::QueryError(format!("Error loading groups: {:?}", err))
+      })?;
 
   tracing::info!(
-    "Groups found for user_id {}: {}",
-    user_id,
-    user_groups.len()
-  );
+        "Groups found for user_id {}: {}",
+        user_id,
+        user_groups.len()
+    );
 
   if user_groups.is_empty() {
     tracing::warn!("No groups found for user_id {}", user_id);
   }
 
   let group_list: Vec<GroupInfo> = user_groups
-    .into_iter()
-    .map(|(group_id, group_name, group_code, expired_at)| {
-      tracing::info!(
-        "Group found: group_id = {}, group_name = {}, group_code = {}",
-        group_id,
-        group_name,
-        group_code
-      );
-      GroupInfo {
-        group_id,
-        group_name,
-        group_code,
-        expired_at: expired_at.unwrap().and_utc().to_string(),
-      }
-    })
-    .collect();
+      .into_iter()
+      .map(|(group_id, group_name, group_code, expired_at)| {
+        tracing::info!(
+                "Group found: group_id = {}, group_name = {}, group_code = {}",
+                group_id,
+                group_name,
+                group_code
+            );
+        GroupInfo {
+          group_id,
+          group_name,
+          group_code,
+          expired_at: expired_at.unwrap_or_default().to_string(),
+        }
+      })
+      .collect();
   tracing::info!("Total groups for user_id {}: {}", user_id, group_list.len());
+
   let response = GroupListResponse {
     user_id: user.id,
     user_code: user.user_code,
     total_gr: group_list.len(),
     list_gr: group_list,
   };
-  Ok(Json(response))
+
+  Ok(HttpResponse::Ok().json(response))
 }
 
 /**
