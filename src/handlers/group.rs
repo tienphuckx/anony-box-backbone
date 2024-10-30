@@ -1,43 +1,73 @@
+use std::{sync::Arc, time::Duration};
+
 use axum::{
   extract::{Path, State},
   http::StatusCode,
   Json,
 };
-use axum_extra::extract::cookie::Cookie;
-use axum_extra::extract::CookieJar;
+use axum_extra::extract::{cookie::Cookie, CookieJar};
 use chrono::Utc;
-use diesel::{Connection, RunQueryDsl, SelectableHelper};
-use std::sync::Arc;
-use std::time::Duration;
-
+use diesel::{
+  r2d2::ConnectionManager, result::DatabaseErrorKind, Connection, ExpressionMethods, JoinOnDsl,
+  OptionalExtension, PgConnection, QueryDsl, RunQueryDsl, SelectableHelper,
+};
+use r2d2::PooledConnection;
 use time::OffsetDateTime;
 
-use crate::database::{models, schema};
-use crate::errors::DBError;
 use crate::{
-  database::models::{Group, NewGroup, User},
-  payloads::groups::{GroupInfo, GroupListResponse},
-};
-
-use crate::services::user::{create_user, get_user_by_code};
-use crate::utils::crypto::generate_secret_code;
-use crate::{
-  payloads,
-  payloads::groups::{GroupResult, NewGroupForm},
+  database::{
+    models::{self, Group, NewGroup, User, WaitingList},
+    schema,
+  },
+  errors::{ApiError, DBError},
+  payloads::{
+    self,
+    groups::{GroupResult, JoinGroupForm, NewGroupForm},
+  },
+  services::{
+    group::check_user_join_group,
+    user::{create_user, get_user_by_code},
+  },
+  utils::crypto::generate_secret_code,
   AppState,
 };
 
+use crate::payloads::groups::{GroupInfo, GroupListResponse};
+
 use crate::database::schema::{groups, participants, users};
-use diesel::prelude::*;
 
 use crate::payloads::common::CommonResponse;
-use crate::payloads::user::{NewUserRequest, UserResponse};
 
 use crate::payloads::groups::{GroupResponse, NewGroupWithUserIdRequest};
 
-pub async fn home() -> &'static str {
-  tracing::debug!("GET :: /");
-  "Let's quick chat with NosBox"
+/// ### Create new or get existing user from user_code cookie
+///
+/// This function will return a new or existing user depend on user's existence:
+/// - If user_cookie doesn't provide or if having but not valid a new user will be created.
+/// - If user existed in database return existing user.
+fn get_or_create_user_from_user_code(
+  conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
+  cookie_jar: &CookieJar,
+  username: &str,
+) -> Result<(User, bool), diesel::result::Error> {
+  let user;
+  let mut is_new = true;
+  let user_code_cookie = cookie_jar.get("user_code");
+  if user_code_cookie.is_none() {
+    tracing::debug!("Not found user code");
+    user = create_user(conn, username)?;
+  } else {
+    let user_code = user_code_cookie.unwrap().value();
+    tracing::debug!("user_code: {}", user_code);
+    if let Some(found_user) = get_user_by_code(conn, user_code)? {
+      tracing::debug!("Found user from database via user_code");
+      user = found_user;
+      is_new = false;
+    } else {
+      user = create_user(conn, username)?;
+    }
+  }
+  Ok((user, is_new))
 }
 
 /// ### Handler for API `/add-user-group`
@@ -78,21 +108,7 @@ pub async fn create_user_and_group(
   tracing::debug!("POST: /add-user-group");
   let conn = &mut app_state.db_pool.get().map_err(DBError::ConnectionError)?;
   let transaction_rs: Result<(User, Group), diesel::result::Error> = conn.transaction(|conn| {
-    let user;
-    let user_code_cookie = cookie_jar.get("user_code");
-    if user_code_cookie.is_none() {
-      tracing::debug!("Not found user code");
-      user = create_user(conn, &new_group_form.username)?;
-    } else {
-      let user_code = user_code_cookie.unwrap().value();
-      tracing::debug!("user_code: {}", user_code);
-      if let Some(found_user) = get_user_by_code(conn, user_code)? {
-        tracing::debug!("Found user from database via user_code");
-        user = found_user;
-      } else {
-        user = create_user(conn, &new_group_form.username)?;
-      }
-    }
+    let (user, _) = get_or_create_user_from_user_code(conn, &cookie_jar, &new_group_form.username)?;
 
     let current = Utc::now();
     let expired_at = current + Duration::from_secs((new_group_form.duration * 60) as u64);
@@ -138,6 +154,7 @@ pub async fn create_user_and_group(
     group_name: group.name,
     group_code: group.group_code,
     expired_at: group.expired_at.unwrap().and_utc().to_string(),
+    is_waiting: false,
   };
   // Add user code cookie to response with expired_at time of newly created group
   let mut user_code_cookie = Cookie::new("user_code", group_rs.user_code.clone());
@@ -150,8 +167,141 @@ pub async fn create_user_and_group(
   Ok((new_jar, Json(group_rs)))
 }
 
-#[allow(dead_code)]
-/// Get user groups by user ID
+/// ### Handler for the `/join-group`
+///
+/// This handler manages user requests to join a group, with the following operations:
+/// 1. **User Validation**:
+///    - Checks for an existing `user_code` cookie to verify if the user exists.
+///    - If the user exists in the database, uses the existing user data; otherwise, creates a new user entry.
+///
+/// 2. **Group Joining Process**:
+///    - **Pending Approval**: If the group requires owner approval, the user is added to a waiting list.
+///    - **Direct Join**: If no owner approval is required, the user is added to the group immediately.
+#[utoipa::path(
+  post,
+  path = "/join-group",
+  request_body(
+    description = "Join group form ",
+    content(
+        (NewGroupForm = "application/json", example = json!(
+          {
+            "group_code": "5C28DBCFAB2EA1DD8EF3C1B2B363475F84A0A3031803798D1A3507F813548B6F",
+            "username": "phucnguyen",
+            "message": "Hello I want to join a group, please help me approve my request"
+          }
+        )),
+    )
+ ),
+  responses(
+      (status = 200, description = "Join group successfully", body = GroupResult, content_type = "application/json"),
+      (status = 400, description = "User already join the group"),
+      (status = 401, description = "User was already in waiting list"),
+      (status = 500, description = "Database error")
+  ),
+)]
+pub async fn join_group(
+  State(app_state): State<Arc<AppState>>,
+  cookie_jar: CookieJar,
+  Json(join_group_form): Json<JoinGroupForm>,
+) -> Result<(CookieJar, Json<GroupResult>), ApiError> {
+  tracing::debug!("POST: /join-group");
+  let conn = &mut app_state
+    .db_pool
+    .get()
+    .map_err(|err| ApiError::DatabaseError(DBError::ConnectionError(err)))?;
+  let transaction_rs: Result<Result<(User, Group, bool), ApiError>, diesel::result::Error> = conn
+    .transaction(|conn| {
+      let (user, _) =
+        get_or_create_user_from_user_code(conn, &cookie_jar, &join_group_form.username)?;
+
+      use schema::groups::dsl::{group_code, groups};
+      let group = groups
+        .filter(group_code.eq(&join_group_form.group_code))
+        .select(models::Group::as_select())
+        .get_result::<models::Group>(conn)
+        .optional()?;
+      if group.is_none() {
+        return Ok(Err(ApiError::NotFound(format!(
+          "Not found group with user_code: {}",
+          join_group_form.group_code,
+        ))));
+      }
+      let group = group.unwrap();
+
+      // checking user already joined the group
+      if check_user_join_group(conn, user.id, group.id)? {
+        return Ok(Err(ApiError::AlreadyJoined));
+      }
+      // check group approval_require property to consider add directly to group or waiting list
+      let mut is_waiting = false;
+
+      if group.approval_require.unwrap() {
+        let waiting_list = WaitingList {
+          user_id: user.id,
+          group_id: group.id,
+          message: Some(join_group_form.message.clone()),
+          created_at: Utc::now().naive_utc(),
+        };
+        let insert_result = diesel::insert_into(schema::waiting_list::table)
+          .values(waiting_list)
+          .execute(conn);
+        if let Err(diesel::result::Error::DatabaseError(DatabaseErrorKind::UniqueViolation, _)) =
+          insert_result
+        {
+          return Ok(Err(ApiError::ExistedResource(
+            "User was already in waiting list".into(),
+          )));
+        }
+        is_waiting = true;
+      } else {
+        let insert_result = diesel::insert_into(schema::participants::table)
+          .values((
+            schema::participants::user_id.eq(user.id),
+            schema::participants::group_id.eq(group.id),
+          ))
+          .execute(conn);
+        if let Err(diesel::result::Error::DatabaseError(DatabaseErrorKind::UniqueViolation, _)) =
+          insert_result
+        {
+          return Ok(Err(ApiError::AlreadyJoined));
+        }
+      }
+      Ok(Ok((user, group, is_waiting)))
+    });
+  if let Ok(Err(err)) = transaction_rs {
+    tracing::error!("API error: {}", err.to_string());
+    return Err(err);
+  }
+  if let Err(err) = transaction_rs {
+    tracing::error!("DB error: {}", err.to_string());
+    return Err(ApiError::DatabaseError(DBError::QueryError(
+      err.to_string(),
+    )));
+  }
+  let (user, group, is_waiting) = transaction_rs.unwrap().unwrap();
+
+  let group_rs = payloads::groups::GroupResult {
+    user_id: user.id,
+    username: user.username,
+    user_code: user.user_code,
+    group_id: group.id,
+    group_name: group.name,
+    group_code: group.group_code,
+    expired_at: group.expired_at.unwrap().and_utc().to_string(),
+    is_waiting,
+  };
+
+  let mut user_code_cookie = Cookie::new("user_code", group_rs.user_code.clone());
+  user_code_cookie.set_http_only(true);
+  let expired =
+    OffsetDateTime::from_unix_timestamp(group.expired_at.unwrap().and_utc().timestamp()).unwrap();
+  user_code_cookie.set_expires(expired);
+
+  let new_jar = cookie_jar.add(user_code_cookie);
+  Ok((new_jar, Json(group_rs)))
+}
+
+// Get user groups by user ID
 #[utoipa::path(
   get,
   path = "/gr/list/{user_id}",
@@ -243,56 +393,6 @@ pub async fn get_user_groups(
   };
 
   Ok((StatusCode::OK, Json(response)))
-}
-
-/**
-   Add a new user
-*/
-pub async fn add_user(
-  State(app_state): State<Arc<AppState>>,
-  Json(new_user_req): Json<NewUserRequest>,
-) -> Result<Json<CommonResponse<UserResponse>>, DBError> {
-  tracing::debug!("POST: /add-user");
-  let conn = &mut app_state.db_pool.get().map_err(DBError::ConnectionError)?;
-
-  // Check if the username already exists
-  let existing_user = users::table
-    .filter(users::username.eq(&new_user_req.username))
-    .first::<models::User>(conn)
-    .optional()
-    .map_err(|err| {
-      tracing::error!("Error checking username: {:?}", err);
-      DBError::QueryError("Error checking username".to_string())
-    })?;
-
-  if let Some(_user) = existing_user {
-    return Ok(Json(CommonResponse::error(1, "Username already exists")));
-  }
-
-  // Create a new user
-  let new_user = models::NewUser {
-    username: &new_user_req.username,
-    created_at: chrono::Utc::now().naive_local(),
-    user_code: &generate_secret_code(&new_user_req.username),
-  };
-
-  let inserted_user = diesel::insert_into(users::table)
-    .values(&new_user)
-    .returning(models::User::as_returning())
-    .get_result::<models::User>(conn)
-    .map_err(|err| {
-      tracing::error!("Error inserting user: {:?}", err);
-      DBError::QueryError("Error inserting user".to_string())
-    })?;
-
-  // Prepare the response
-  let user_response = UserResponse {
-    user_id: inserted_user.id,
-    username: inserted_user.username,
-    user_code: inserted_user.user_code,
-  };
-
-  Ok(Json(CommonResponse::success(user_response)))
 }
 
 /**

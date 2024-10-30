@@ -2,30 +2,16 @@ use std::{env, sync::Arc};
 mod database;
 mod errors;
 mod handlers;
-mod msg_handlers;
 mod payloads;
+mod router;
 mod services;
-mod user_handlers;
 mod utils;
 
-use axum::{
-  routing::{get, post},
-  Router,
-};
 use diesel::{
   r2d2::{self, ConnectionManager, Pool},
   PgConnection,
 };
 
-use payloads::{
-  common::CommonResponse,
-  groups::{GroupInfo, GroupListResponse, NewGroupForm},
-  user::{NewUserRequest, UserResponse},
-};
-use utoipa::OpenApi;
-use utoipa_swagger_ui::SwaggerUi;
-
-use crate::msg_handlers::{get_latest_messages, get_latest_messages_by_code};
 use dotenvy::dotenv;
 use tokio::net::TcpListener;
 use tracing::level_filters::LevelFilter;
@@ -42,33 +28,6 @@ fn config_logging() {
 pub struct AppState {
   pub db_pool: Pool<ConnectionManager<PgConnection>>,
 }
-
-pub fn init_router() -> Router<Arc<AppState>> {
-  Router::new()
-    .route("/", get(handlers::home))
-    .route("/add-user-group", post(handlers::create_user_and_group)) // this api add new a user and new gr
-    .route("/add-user", post(handlers::add_user)) //first: create a new user
-    .route("/create-group", post(handlers::create_group_with_user)) // second: create a new group by user id
-    .route("/send-msg", post(msg_handlers::send_msg))
-    .route("/get-latest-messages", post(get_latest_messages))
-    .route(
-      "/get-latest-messages/:group_code",
-      get(get_latest_messages_by_code),
-    )
-    .route("/add-user-doc", post(user_handlers::add_user_docs))
-}
-
-// Define Utoipa OpenAPI structure
-#[derive(OpenApi)]
-#[openapi(
-  paths(
-    handlers::create_user_and_group,
-    user_handlers::add_user_docs,
-    handlers::get_user_groups,
-  ),
-  components(schemas(NewGroupForm, NewUserRequest, UserResponse, CommonResponse<UserResponse>, GroupListResponse, GroupInfo))
-)]
-struct ApiDoc;
 
 #[tokio::main]
 async fn main() {
@@ -96,9 +55,7 @@ async fn main() {
 
   let app_state = Arc::new(AppState { db_pool });
 
-  let app = init_router()
-    .with_state(app_state)
-    .merge(SwaggerUi::new("/swagger-ui").url("/api/docs/open-api.json", ApiDoc::openapi()));
+  let app = router::init_router().with_state(app_state);
 
   let listener = TcpListener::bind((server_address.as_str(), server_port))
     .await

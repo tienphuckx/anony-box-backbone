@@ -49,6 +49,17 @@ pub struct NewGroup<'a> {
   pub expired_at: NaiveDateTime,
 }
 
+#[derive(Selectable, Queryable, Associations, Insertable)]
+#[diesel(table_name = crate::database::schema::waiting_list)]
+#[diesel(belongs_to(User))]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct WaitingList {
+  pub user_id: i32,
+  pub group_id: i32,
+  pub message: Option<String>,
+  pub created_at: NaiveDateTime,
+}
+
 // Define the MessageText struct for the messages_text table
 #[derive(Queryable, Identifiable, Associations, Debug)]
 #[diesel(belongs_to(User))]
