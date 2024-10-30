@@ -1,30 +1,20 @@
 use std::sync::Arc;
-use std::time::Duration;
 
 use axum::{extract::State, Json};
-use axum_extra::extract::cookie::Cookie;
-use axum_extra::extract::CookieJar;
 use chrono::Utc;
-use diesel::{Connection, RunQueryDsl, SelectableHelper};
-
-use time::OffsetDateTime;
-
-use crate::database::models::{Group, NewGroup, User};
-use crate::database::{models, schema};
-use crate::errors::{ApiError, DBError};
-
-use crate::services::user::{create_user, get_user_by_code};
-use crate::utils::crypto::generate_secret_code;
-use crate::{
-  payloads,
-  payloads::groups::{GroupResult, NewGroupForm},
-  AppState,
+use diesel::{
+  ExpressionMethods, JoinOnDsl, OptionalExtension, QueryDsl, RunQueryDsl, SelectableHelper,
 };
 
+use crate::database::models;
+use crate::errors::DBError;
+
+use crate::utils::crypto::generate_secret_code;
+use crate::AppState;
+
 use crate::database::schema::{groups, participants, users};
-use crate::payloads::groups::{GroupInfo, GroupListResponse, JoinGroupForm};
+use crate::payloads::groups::{GroupInfo, GroupListResponse};
 use axum::extract::Path;
-use diesel::prelude::*;
 
 use crate::payloads::common::CommonResponse;
 use crate::payloads::user::{NewUserRequest, UserResponse};
@@ -34,129 +24,6 @@ use crate::payloads::groups::{GroupResponse, NewGroupWithUserIdRequest};
 pub async fn home() -> &'static str {
   tracing::debug!("GET :: /");
   "Let's quick chat with NosBox"
-}
-
-/// ### Handler for API `/add-user-group`
-///
-/// This handler performs the following tasks:
-/// 1. Checks if the user exists using the `user_code` cookie.
-/// 2. If the user exists in the database, utilize the existing user; otherwise, create a new user.
-/// 3. Create a new group.
-/// 4. Add the current user to the participants table of the newly created group.
-pub async fn create_user_and_group(
-  State(app_state): State<Arc<AppState>>,
-  cookie_jar: CookieJar,
-  Json(new_group_form): Json<NewGroupForm>,
-) -> Result<(CookieJar, Json<GroupResult>), DBError> {
-  tracing::debug!("POST: /add-user-group");
-  let conn = &mut app_state.db_pool.get().map_err(DBError::ConnectionError)?;
-  let transaction_rs: Result<(User, Group), diesel::result::Error> = conn.transaction(|conn| {
-    let user;
-    let user_code_cookie = cookie_jar.get("user_code");
-    if user_code_cookie.is_none() {
-      tracing::debug!("Not found user code");
-      user = create_user(conn, &new_group_form.username)?;
-    } else {
-      let user_code = user_code_cookie.unwrap().value();
-      tracing::debug!("user_code: {}", user_code);
-      if let Some(found_user) = get_user_by_code(conn, user_code)? {
-        tracing::debug!("Found user from database via user_code");
-        user = found_user;
-      } else {
-        user = create_user(conn, &new_group_form.username)?;
-      }
-    }
-
-    let current = Utc::now();
-    let expired_at = current + Duration::from_secs((new_group_form.duration * 60) as u64);
-
-    let new_group = NewGroup {
-      name: &new_group_form.group_name,
-      maximum_members: new_group_form.maximum_members,
-      approval_require: new_group_form.approval_require,
-      user_id: user.id,
-      created_at: current.naive_local(),
-      expired_at: expired_at.naive_local(),
-      group_code: &generate_secret_code(&new_group_form.group_name),
-    };
-
-    let group_result = diesel::insert_into(schema::groups::table)
-      .values(&new_group)
-      .returning(models::Group::as_returning())
-      .get_result::<models::Group>(conn)?;
-
-    // Insert the user into the participants table as a participant of the new group
-    diesel::insert_into(schema::participants::table)
-      .values((
-        schema::participants::user_id.eq(user.id),
-        schema::participants::group_id.eq(group_result.id),
-      ))
-      .execute(conn)?;
-
-    Ok((user, group_result))
-  });
-
-  let (user, group) = transaction_rs.map_err(|err| match err {
-    diesel::result::Error::DatabaseError(diesel::result::DatabaseErrorKind::UniqueViolation, _) => {
-      DBError::ConstraintViolation(err.to_string())
-    }
-    _ => DBError::QueryError(err.to_string()),
-  })?;
-
-  let group_rs = payloads::groups::GroupResult {
-    user_id: user.id,
-    username: user.username,
-    user_code: user.user_code,
-    group_id: group.id,
-    group_name: group.name,
-    group_code: group.group_code,
-    expired_at: group.expired_at.unwrap().and_utc().to_string(),
-  };
-  // Add user code cookie to response with expired_at time of newly created group
-  let mut user_code_cookie = Cookie::new("user_code", group_rs.user_code.clone());
-  user_code_cookie.set_http_only(true);
-  let expired =
-    OffsetDateTime::from_unix_timestamp(group.expired_at.unwrap().and_utc().timestamp()).unwrap();
-  user_code_cookie.set_expires(expired);
-
-  let new_jar = cookie_jar.add(user_code_cookie);
-  Ok((new_jar, Json(group_rs)))
-}
-
-pub async fn join_group(
-  State(app_state): State<Arc<AppState>>,
-  cookie_jar: CookieJar,
-  Json(join_group_form): Json<JoinGroupForm>,
-) -> Result<(), ApiError> {
-  let conn = &mut app_state.db_pool.get().map_err(ApiError::DatabaseError)?;
-  let transaction_rs: Result<Option<()>, diesel::result::Error> = conn.transaction(|conn| {
-    let mut user: Option<models::User> = None;
-    let mut is_new_user = true;
-
-    if let Some(user_code_cookie) = cookie_jar.get("user_code") {
-      let user_code = user_code_cookie.value();
-      tracing::debug!("user_code: {}", user_code);
-      if let Some(found_user) = get_user_by_code(conn, user_code)? {
-        tracing::debug!("Found user from database via user_code");
-        is_new_user = false;
-        user = Some(found_user);
-      }
-    }
-    if is_new_user {
-      user = Some(create_user(conn, &join_group_form.username)?);
-    }
-    let user = user.unwrap();
-    use schema::groups::dsl::{group_code, groups};
-    let group = groups
-      .filter(group_code.eq(&join_group_form.group_code))
-      .select(models::Group::as_select())
-      .get_result::<models::Group>(conn)?;
-
-    use schema::participants::dsl::{group_id as p_group_id, participants, user_id as p_user_id};
-    Ok(Some(()))
-  });
-
-  Ok(())
 }
 
 /**

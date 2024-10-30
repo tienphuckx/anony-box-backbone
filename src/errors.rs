@@ -6,8 +6,10 @@ use thiserror::Error;
 pub enum DBError {
   #[error("Failed to query from database {}", 0)]
   QueryError(String),
+
   #[error("Failed to get a connection: {0}")]
   ConnectionError(#[from] r2d2::Error),
+
   #[error("Constraint violation: {0}")]
   ConstraintViolation(String),
 }
@@ -29,13 +31,13 @@ impl IntoResponse for DBError {
 #[allow(dead_code)]
 #[derive(Error, Debug)]
 pub enum ApiError {
-  #[error("The database server has an issue: {0}")]
-  DatabaseError(#[from] r2d2::Error),
+  #[error("Database error: cause {}", 0.to_string())]
+  DatabaseError(DBError),
 
   #[error("The resource is not found: {0}")]
   NotFound(String),
 
-  #[error("The {0} already existed")]
+  #[error("{0}")]
   ExistedResource(String),
 
   #[error("The user already joined the group")]
@@ -51,6 +53,7 @@ impl IntoResponse for ApiError {
       Self::NotFound(_) => (StatusCode::NOT_FOUND, self.to_string()),
       Self::AlreadyJoined => (StatusCode::BAD_REQUEST, self.to_string()),
       Self::ExistedResource(_) => (StatusCode::BAD_REQUEST, self.to_string()),
+      // Yes we want to hide internal message error from user
       _ => (
         StatusCode::SERVICE_UNAVAILABLE,
         "Service unavailable".to_string(),

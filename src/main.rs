@@ -2,7 +2,6 @@ use std::{env, sync::Arc};
 mod database;
 mod errors;
 mod handlers;
-mod msg_handlers;
 mod payloads;
 mod services;
 mod utils;
@@ -16,7 +15,6 @@ use diesel::{
   PgConnection,
 };
 
-use crate::msg_handlers::{get_latest_messages, get_latest_messages_by_code};
 use dotenvy::dotenv;
 use tokio::net::TcpListener;
 use tracing::level_filters::LevelFilter;
@@ -35,17 +33,26 @@ pub struct AppState {
 }
 pub fn init_router() -> Router<Arc<AppState>> {
   Router::new()
-    .route("/", get(handlers::home))
-    .route("/add-user-group", post(handlers::create_user_and_group)) // this api add new a user and new gr
-    .route("/join-group", post(handlers::join_group))
-    .route("/gr/list/:user_id", get(handlers::get_user_groups))
-    .route("/add-user", post(handlers::add_user)) //first: create a new user
-    .route("/create-group", post(handlers::create_group_with_user)) // second: create a new group by user id
-    .route("/send-msg", post(msg_handlers::send_msg))
-    .route("/get-latest-messages", post(get_latest_messages))
+    .route("/", get(handlers::common::home))
+    .route(
+      "/add-user-group",
+      post(handlers::group::create_user_and_group),
+    ) // this api add new a user and new gr
+    .route("/join-group", post(handlers::group::join_group))
+    .route("/gr/list/:user_id", get(handlers::common::get_user_groups))
+    .route("/add-user", post(handlers::common::add_user)) //first: create a new user
+    .route(
+      "/create-group",
+      post(handlers::common::create_group_with_user),
+    ) // second: create a new group by user id
+    .route("/send-msg", post(handlers::message::send_msg))
+    .route(
+      "/get-latest-messages",
+      post(handlers::message::get_latest_messages),
+    )
     .route(
       "/get-latest-messages/:group_code",
-      get(get_latest_messages_by_code),
+      get(handlers::message::get_latest_messages_by_code),
     )
 }
 

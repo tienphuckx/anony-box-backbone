@@ -26,11 +26,13 @@ pub struct GroupResult {
   pub group_name: String,
   pub group_code: String,
   pub expired_at: String,
+  pub is_waiting: bool,
 }
 #[derive(Deserialize)]
 pub struct JoinGroupForm {
   pub group_code: String,
   pub username: String,
+  pub message: String,
 }
 
 /**
