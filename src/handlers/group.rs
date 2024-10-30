@@ -1,13 +1,15 @@
 use std::{sync::Arc, time::Duration};
 
-use axum::{extract::State, Json};
+use axum::{
+  extract::{Path, State},
+  http::StatusCode,
+  Json,
+};
 use axum_extra::extract::{cookie::Cookie, CookieJar};
 use chrono::Utc;
 use diesel::{
-  query_dsl::methods::{FilterDsl, SelectDsl},
-  r2d2::ConnectionManager,
-  result::DatabaseErrorKind,
-  Connection, ExpressionMethods, OptionalExtension, PgConnection, RunQueryDsl, SelectableHelper,
+  r2d2::ConnectionManager, result::DatabaseErrorKind, Connection, ExpressionMethods, JoinOnDsl,
+  OptionalExtension, PgConnection, QueryDsl, RunQueryDsl, SelectableHelper,
 };
 use r2d2::PooledConnection;
 use time::OffsetDateTime;
@@ -29,6 +31,14 @@ use crate::{
   utils::crypto::generate_secret_code,
   AppState,
 };
+
+use crate::payloads::groups::{GroupInfo, GroupListResponse};
+
+use crate::database::schema::{groups, participants, users};
+
+use crate::payloads::common::CommonResponse;
+
+use crate::payloads::groups::{GroupResponse, NewGroupWithUserIdRequest};
 
 /// ### Create new or get existing user from user_code cookie
 ///
@@ -59,6 +69,7 @@ fn get_or_create_user_from_user_code(
   }
   Ok((user, is_new))
 }
+
 /// ### Handler for API `/add-user-group`
 ///
 /// This handler performs the following tasks:
@@ -66,6 +77,29 @@ fn get_or_create_user_from_user_code(
 /// 2. If the user exists in the database, utilize the existing user; otherwise, create a new user.
 /// 3. Create a new group.
 /// 4. Add the current user to the participants table of the newly created group.
+#[utoipa::path(
+  post,
+  path = "/add-user-group",
+  request_body(
+    description = "New group form ",
+    content(
+        (NewGroupForm = "application/json", example = json!(
+          {
+            "username": "LinhNguyen",
+            "group_name": "Linux fundamentals",
+            "duration": 60,
+            "maximum_members": 50,
+            "approval_require":  true
+          }
+        )),
+    )
+ ),
+  responses(
+      (status = 200, description = "Create a group successfully", body = GroupResult, content_type = "application/json"),
+      (status = 400, description = "Username already existed"),
+      (status = 500, description = "Database error")
+  ),
+)]
 pub async fn create_user_and_group(
   State(app_state): State<Arc<AppState>>,
   cookie_jar: CookieJar,
@@ -143,6 +177,28 @@ pub async fn create_user_and_group(
 /// 2. **Group Joining Process**:
 ///    - **Pending Approval**: If the group requires owner approval, the user is added to a waiting list.
 ///    - **Direct Join**: If no owner approval is required, the user is added to the group immediately.
+#[utoipa::path(
+  post,
+  path = "/join-group",
+  request_body(
+    description = "Join group form ",
+    content(
+        (NewGroupForm = "application/json", example = json!(
+          {
+            "group_code": "5C28DBCFAB2EA1DD8EF3C1B2B363475F84A0A3031803798D1A3507F813548B6F",
+            "username": "phucnguyen",
+            "message": "Hello I want to join a group, please help me approve my request"
+          }
+        )),
+    )
+ ),
+  responses(
+      (status = 200, description = "Join group successfully", body = GroupResult, content_type = "application/json"),
+      (status = 400, description = "User already join the group"),
+      (status = 401, description = "User was already in waiting list"),
+      (status = 500, description = "Database error")
+  ),
+)]
 pub async fn join_group(
   State(app_state): State<Arc<AppState>>,
   cookie_jar: CookieJar,
@@ -243,4 +299,172 @@ pub async fn join_group(
 
   let new_jar = cookie_jar.add(user_code_cookie);
   Ok((new_jar, Json(group_rs)))
+}
+
+// Get user groups by user ID
+#[utoipa::path(
+  get,
+  path = "/gr/list/{user_id}",
+  params(
+        ("user_id" = i32, Path, description = "ID of the user to get groups for")
+  ),
+  responses(
+        (status = 200, description = "List of groups the user belongs to", body = GroupListResponse),
+        (status = 404, description = "User not found", body = String),
+        (status = 500, description = "Database connection error", body = String)
+  )
+)]
+pub async fn get_user_groups(
+  State(app_state): State<Arc<AppState>>,
+  Path(user_id): Path<i32>,
+) -> Result<(StatusCode, Json<GroupListResponse>), DBError> {
+  tracing::debug!("GET: /gr/list/{}", user_id);
+
+  let conn = &mut app_state.db_pool.get().map_err(|err| {
+    tracing::error!("Failed to get connection from pool: {:?}", err);
+    DBError::ConnectionError(err)
+  })?;
+
+  // Fetch user info
+  let user = users::table
+    .find(user_id)
+    .first::<models::User>(conn)
+    .map_err(|err| {
+      tracing::error!("Failed to find user with id {}: {:?}", user_id, err);
+      DBError::QueryError(format!("User not found: {:?}", err))
+    })?;
+
+  tracing::info!(
+    "User found: user_id = {}, user_code = {}",
+    user.id,
+    user.user_code
+  );
+
+  // Fetch groups that the user is part of
+  let user_groups = participants::table
+    .inner_join(groups::table.on(groups::id.eq(participants::group_id)))
+    .filter(participants::user_id.eq(user_id))
+    .select((
+      groups::id,
+      groups::name,
+      groups::group_code,
+      groups::expired_at,
+    ))
+    .load::<(i32, String, String, Option<chrono::NaiveDateTime>)>(conn)
+    .map_err(|err| {
+      tracing::error!("Failed to load groups for user_id {}: {:?}", user_id, err);
+      DBError::QueryError(format!("Error loading groups: {:?}", err))
+    })?;
+
+  tracing::info!(
+    "Groups found for user_id {}: {}",
+    user_id,
+    user_groups.len()
+  );
+
+  if user_groups.is_empty() {
+    tracing::warn!("No groups found for user_id {}", user_id);
+  }
+
+  let group_list: Vec<GroupInfo> = user_groups
+    .into_iter()
+    .map(|(group_id, group_name, group_code, expired_at)| {
+      tracing::info!(
+        "Group found: group_id = {}, group_name = {}, group_code = {}",
+        group_id,
+        group_name,
+        group_code
+      );
+      GroupInfo {
+        group_id,
+        group_name,
+        group_code,
+        expired_at: expired_at.unwrap_or_default().to_string(),
+      }
+    })
+    .collect();
+  tracing::info!("Total groups for user_id {}: {}", user_id, group_list.len());
+
+  let response = GroupListResponse {
+    user_id: user.id,
+    user_code: user.user_code,
+    total_gr: group_list.len(),
+    list_gr: group_list,
+  };
+
+  Ok((StatusCode::OK, Json(response)))
+}
+
+/**
+   Create a new group with exists user by user_id
+*/
+pub async fn create_group_with_user(
+  State(app_state): State<Arc<AppState>>,
+  Json(new_group_req): Json<NewGroupWithUserIdRequest>,
+) -> Result<Json<CommonResponse<GroupResponse>>, DBError> {
+  tracing::debug!("POST: /create-group");
+  let conn = &mut app_state.db_pool.get().map_err(DBError::ConnectionError)?;
+
+  // Check if the user exists
+  let user_exists = users::table
+    .find(new_group_req.user_id)
+    .first::<models::User>(conn)
+    .optional()
+    .map_err(|err| {
+      tracing::error!(
+        "Error checking user_id {}: {:?}",
+        new_group_req.user_id,
+        err
+      );
+      DBError::QueryError("Error checking user".to_string())
+    })?;
+
+  if user_exists.is_none() {
+    return Ok(Json(CommonResponse::error(1, "User does not exist")));
+  }
+
+  let current_time = Utc::now();
+  let expired_at = current_time + chrono::Duration::minutes(new_group_req.duration.into());
+
+  // Create the new group
+  let new_group = models::NewGroup {
+    name: &new_group_req.group_name,
+    group_code: &generate_secret_code(&new_group_req.group_name),
+    user_id: new_group_req.user_id,
+    approval_require: new_group_req.approval_require,
+    created_at: current_time.naive_utc(),
+    expired_at: expired_at.naive_utc(),
+    maximum_members: new_group_req.maximum_members,
+  };
+
+  let group_result = diesel::insert_into(groups::table)
+    .values(&new_group)
+    .returning(models::Group::as_returning())
+    .get_result::<models::Group>(conn)
+    .map_err(|err| {
+      tracing::error!("Error inserting group: {:?}", err);
+      DBError::QueryError("Error inserting group".to_string())
+    })?;
+
+  // Insert into participants table
+  diesel::insert_into(participants::table)
+    .values((
+      participants::user_id.eq(new_group_req.user_id),
+      participants::group_id.eq(group_result.id),
+    ))
+    .execute(conn)
+    .map_err(|err| {
+      tracing::error!("Error inserting into participants: {:?}", err);
+      DBError::QueryError("Error inserting into participants".to_string())
+    })?;
+
+  // Prepare the response
+  let group_response = GroupResponse {
+    group_id: group_result.id,
+    group_name: group_result.name,
+    group_code: group_result.group_code,
+    expired_at: group_result.expired_at.unwrap().and_utc().to_string(),
+  };
+
+  Ok(Json(CommonResponse::success(group_response)))
 }
