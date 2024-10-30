@@ -2,7 +2,7 @@ use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 pub struct NewGroupForm {
   pub username: String,
   pub group_name: String,
@@ -18,7 +18,7 @@ impl NewGroupForm {
   }
 }
 
-#[derive(Serialize, Default)]
+#[derive(Serialize, Default, ToSchema)]
 pub struct GroupResult {
   pub user_id: i32,
   pub username: String,

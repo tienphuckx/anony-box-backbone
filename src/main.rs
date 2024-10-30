@@ -3,11 +3,10 @@ mod database;
 mod errors;
 mod handlers;
 mod msg_handlers;
-mod user_handlers;
 mod payloads;
 mod services;
+mod user_handlers;
 mod utils;
-
 
 use axum::{
   routing::{get, post},
@@ -18,7 +17,11 @@ use diesel::{
   PgConnection,
 };
 
-use actix_web::{web, App, HttpServer};
+use payloads::{
+  common::CommonResponse,
+  groups::{GroupInfo, GroupListResponse, NewGroupForm},
+  user::{NewUserRequest, UserResponse},
+};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -28,14 +31,6 @@ use tokio::net::TcpListener;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 use utils::constants::*;
-use crate::handlers::get_user_groups;
-use crate::user_handlers::add_user_docs;
-use crate::payloads::user::{NewUserRequest, UserResponse}; // Import NewUserRequest and UserResponse
-use crate::payloads::common::CommonResponse; // Import CommonResponse
-
-use crate::payloads::groups::{GroupListResponse, GroupInfo};
-
-
 
 fn config_logging() {
   let directives = format!("{level}", level = LevelFilter::DEBUG);
@@ -47,6 +42,7 @@ fn config_logging() {
 pub struct AppState {
   pub db_pool: Pool<ConnectionManager<PgConnection>>,
 }
+
 pub fn init_router() -> Router<Arc<AppState>> {
   Router::new()
     .route("/", get(handlers::home))
@@ -59,22 +55,23 @@ pub fn init_router() -> Router<Arc<AppState>> {
       "/get-latest-messages/:group_code",
       get(get_latest_messages_by_code),
     )
-      .route("/add-user-doc", post(user_handlers::add_user_docs))
+    .route("/add-user-doc", post(user_handlers::add_user_docs))
 }
 
 // Define Utoipa OpenAPI structure
 #[derive(OpenApi)]
 #[openapi(
   paths(
+    handlers::create_user_and_group,
     user_handlers::add_user_docs,
     handlers::get_user_groups,
   ),
-  components(schemas(NewUserRequest, UserResponse, CommonResponse<UserResponse>, GroupListResponse, GroupInfo))
+  components(schemas(NewGroupForm, NewUserRequest, UserResponse, CommonResponse<UserResponse>, GroupListResponse, GroupInfo))
 )]
 struct ApiDoc;
 
 #[tokio::main]
-async fn main() -> Result<(), std::io::Error> {
+async fn main() {
   config_logging();
   dotenv().ok();
   let database_url = env::var("DATABASE_URL").expect("Database URL must be set");
@@ -93,22 +90,20 @@ async fn main() -> Result<(), std::io::Error> {
 
   let manager = ConnectionManager::<PgConnection>::new(database_url);
   let db_pool = r2d2::Pool::builder()
-      .max_size(pool_size)
-      .build(manager)
-      .expect("Failed to create connection pool");
+    .max_size(pool_size)
+    .build(manager)
+    .expect("Failed to create connection pool");
 
   let app_state = Arc::new(AppState { db_pool });
 
-  // Configure Actix server
-  HttpServer::new(move || {
-    let openapi = ApiDoc::openapi();
-    App::new()
-        .app_data(web::Data::new(app_state.clone()))
-        .service(SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-doc/openapi.json", openapi))
-        .route("/gr/list/{user_id}", web::get().to(get_user_groups))
-  })
-      .bind((server_address.as_str(), server_port))?
-      .run()
-      .await?;
-  Ok(())
+  let app = init_router()
+    .with_state(app_state)
+    .merge(SwaggerUi::new("/swagger-ui").url("/api/docs/open-api.json", ApiDoc::openapi()));
+
+  let listener = TcpListener::bind((server_address.as_str(), server_port))
+    .await
+    .expect("Cannot listen on address");
+  tracing::info!("Server is listening on {}:{}", server_address, server_port);
+  // println!("Server is listening on port {}", server_port);
+  axum::serve(listener, app).await.unwrap();
 }
