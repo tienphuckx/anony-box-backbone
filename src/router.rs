@@ -1,9 +1,10 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use axum::{
   routing::{get, post},
   Router,
 };
+use tower_http::{timeout::TimeoutLayer, trace::TraceLayer};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -65,4 +66,10 @@ pub fn init_router() -> Router<Arc<AppState>> {
     .route("/add-user-doc", post(handlers::user::add_user_docs))
     .fallback(handlers::common::fallback)
     .merge(get_swagger_ui())
+    .layer(
+      (TraceLayer::new_for_http(),
+      // Graceful shutdown will wait for outstanding requests to complete. Add a timeout so
+      // requests don't hang forever.
+      TimeoutLayer::new(Duration::from_secs(10)))
+    )
 }
