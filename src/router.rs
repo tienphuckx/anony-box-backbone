@@ -63,5 +63,6 @@ pub fn init_router() -> Router<Arc<AppState>> {
       get(handlers::message::get_latest_messages_by_code),
     )
     .route("/add-user-doc", post(handlers::user::add_user_docs))
+    .fallback(handlers::common::fallback)
     .merge(get_swagger_ui())
 }

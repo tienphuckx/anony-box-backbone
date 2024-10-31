@@ -13,7 +13,7 @@ use diesel::{
 };
 
 use dotenvy::dotenv;
-use tokio::net::TcpListener;
+use tokio::{net::TcpListener, signal};
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 use utils::constants::*;
@@ -62,5 +62,33 @@ async fn main() {
     .expect("Cannot listen on address");
   tracing::info!("Server is listening on {}:{}", server_address, server_port);
   // println!("Server is listening on port {}", server_port);
-  axum::serve(listener, app).await.unwrap();
+  axum::serve(listener, app)
+    .with_graceful_shutdown(shutdown_signal())
+    .await
+    .unwrap();
+  tracing::info!("Server is shutdown");
+}
+
+async fn shutdown_signal() {
+  let ctrl_c = async {
+    signal::ctrl_c()
+      .await
+      .expect("failed to install Ctrl+C handler");
+  };
+
+  #[cfg(unix)]
+  let terminate = async {
+    signal::unix::signal(signal::unix::SignalKind::terminate())
+      .expect("failed to install signal handler")
+      .recv()
+      .await;
+  };
+
+  #[cfg(not(unix))]
+  let terminate = std::future::pending::<()>();
+
+  tokio::select! {
+      _ = ctrl_c => {},
+      _ = terminate => {}
+  }
 }
