@@ -87,64 +87,6 @@ pub async fn send_msg(
 ///    - username
 ///    - time
 ///    - reaction data
-// pub async fn get_group_detail_by_group_id(
-//     State(app_state): State<Arc<AppState>>,
-//     Path(group_id): Path<String>,
-// ) -> Result<Json<GetMessagesResponse>, DBError> {
-//     tracing::debug!("GET: /get_group_detail_by_group_id");
-//
-//     // Parse group_id to i32 and handle parsing error
-//     let group_id = group_id.parse::<i32>().map_err(|_| DBError::QueryError("Invalid group_id".to_string()))?;
-//
-//     let conn = &mut app_state.db_pool.get().map_err(DBError::ConnectionError)?;
-//
-//     // Query the latest messages using group_code
-//     let messages = messages_text::table
-//         .inner_join(users::table.on(users::id.eq(messages_text::user_id)))
-//         .inner_join(groups::table.on(groups::id.eq(messages_text::group_id)))
-//         .filter(groups::id.eq(group_id))
-//         .order(messages_text::created_at.desc())
-//         .limit(10)
-//         .select((
-//             messages_text::id,
-//             messages_text::content,
-//             messages_text::message_type,
-//             messages_text::created_at,
-//             messages_text::user_id,
-//             users::username,
-//         ))
-//         .load::<MessageWithUser>(conn)
-//         .map_err(|err| {
-//             tracing::error!(
-//         "Error querying messages with user info by group code: {:?}",
-//         err
-//       );
-//             DBError::QueryError("Error querying messages".to_string())
-//         })?;
-//
-//     // Build the response
-//     let messages_response = messages
-//         .into_iter()
-//         .map(|message| MessageResponse {
-//             id: message.id,
-//             content: message.content,
-//             message_type: message.message_type,
-//             created_at: message.created_at,
-//             user_id: message.user_id,
-//             user_name: message.user_name,
-//         })
-//         .collect();
-//
-//     Ok(Json(GetMessagesResponse {
-//         messages: messages_response,
-//     }))
-// }
-
-// use diesel::dsl::count;
-// use diesel::prelude::*;
-// use crate::schema::{groups, participants, waiting_list, messages_text};
-// use crate::models::{GroupDetailResponse, MessageWithUser, DBError};
-
 pub async fn get_group_detail_with_extra_info(
     State(app_state): State<Arc<AppState>>,
     Path(group_id): Path<i32>,
