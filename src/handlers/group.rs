@@ -416,7 +416,7 @@ pub async fn get_list_groups_by_user_id(
           expired_at: expired_at.unwrap_or_default().to_string(),
           latest_ms_content,
           latest_ms_time: latest_ms_time.to_string(),
-          created_at: expired_at.unwrap_or_default().to_string(),
+          created_at: created_at.unwrap_or_default().to_string(),
         })
       })
       .collect();
