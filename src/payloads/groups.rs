@@ -45,6 +45,8 @@ pub struct GroupInfo {
   pub group_name: String,
   pub group_code: String,
   pub expired_at: String,
+  pub latest_ms_content: String,
+  pub latest_ms_time: String,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -54,6 +56,7 @@ pub struct GroupListResponse {
   pub total_gr: usize,
   pub list_gr: Vec<GroupInfo>,
 }
+
 
 /**
   for create a group with user id and others field

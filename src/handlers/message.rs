@@ -3,7 +3,7 @@ use crate::database::schema::users;
 use crate::database::schema::{groups, messages_text, participants};
 use crate::errors::DBError;
 use crate::payloads::common::CommonResponse;
-use crate::payloads::messages::{GetMessagesRequest, GetMessagesResponse, MessageResponse};
+use crate::payloads::messages::{GetMessagesResponse, MessageResponse};
 use crate::payloads::messages::{MessageWithUser, SendMessageRequest, SendMessageResponse};
 use crate::AppState;
 use axum::extract::Path;

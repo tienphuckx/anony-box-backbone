@@ -22,7 +22,7 @@ use crate::{
 #[openapi(
   paths(
     handlers::common::home,
-    handlers::group::get_user_groups,
+    handlers::group::get_list_groups_by_user_id,
     handlers::group::create_user_and_group,
     handlers::group::join_group,
     handlers::user::add_user_docs
@@ -48,7 +48,7 @@ pub fn init_router() -> Router<Arc<AppState>> {
       post(handlers::group::create_user_and_group),
     )
     .route("/join-group", post(handlers::group::join_group))
-    .route("/gr/list/:user_id", get(handlers::group::get_user_groups))
+    .route("/gr/list/:user_id", get(handlers::group::get_list_groups_by_user_id))
     .route("/add-user", post(handlers::user::add_user)) //first: create a new user
     .route(
       "/create-group",
