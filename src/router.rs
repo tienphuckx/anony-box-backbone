@@ -26,6 +26,7 @@ use crate::{
     handlers::group::create_user_and_group,
     handlers::group::join_group,
     handlers::group::get_waiting_list,
+    handlers::group::process_joining_request,
     handlers::user::add_user_docs
     
   ),
@@ -51,7 +52,8 @@ pub fn init_router() -> Router<Arc<AppState>> {
     )
     .route("/join-group", post(handlers::group::join_group))
     .route("/gr/list/:user_id", get(handlers::group::get_list_groups_by_user_id))
-    .route("/group/:group_id/waiting-list", get(handlers::group::get_waiting_list))
+    .route("/groups/:group_id/waiting-list", get(handlers::group::get_waiting_list))
+    .route("/waiting-list/:request_id", post(handlers::group::process_joining_request))
     .route("/add-user", post(handlers::user::add_user)) //first: create a new user
     .route(
       "/create-group",

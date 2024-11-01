@@ -1,9 +1,7 @@
 use std::{sync::Arc, time::Duration};
 
 use axum::{
-  extract::{Path, Query, State},
-  http::StatusCode,
-  Json,
+  body::Body, extract::{Path, Query, State}, http::StatusCode, Json
 };
 use axum_extra::extract::{cookie::Cookie, CookieJar};
 use chrono::Utc;
@@ -23,11 +21,10 @@ use crate::{
   payloads::{
     self,
     common::{ListResponse, PageRequest},
-    groups::{GroupResult, JoinGroupForm, NewGroupForm, WaitingListResponse},
+    groups::{GroupResult, JoinGroupForm, NewGroupForm, ProcessWaitingRequest, WaitingListResponse},
   },
   services::{
-    group::{check_owner_of_group, check_user_join_group, get_count_waiting_list},
-    user::{create_user, get_user_by_code},
+    self, group::{check_owner_of_group, check_user_join_group, get_count_waiting_list, get_waiting_list_object}, user::{create_user, get_user_by_code}
   },
   utils::{
     crypto::generate_secret_code,
@@ -547,7 +544,7 @@ fn validate_owner_of_group(
 
 #[utoipa::path(
   get,
-  path = "/group/{group_id}/waiting-list",
+  path = "/groups/{group_id}/waiting-list",
   params(
     ("group_id" = u32, Path, description = "id of the group"),
     ("page" = Option<u32>, Query, description = "page index", ),
@@ -643,4 +640,48 @@ pub async fn get_waiting_list(
   };
 
   Ok((StatusCode::OK, Json(response)))
+}
+
+/// ### Handler for API `/waiting-list/:request_id`
+///
+/// Process joining request: accept or reject the request
+///
+/// **Notice**: User must be an owner of the group
+///
+#[utoipa::path(
+  post,
+  path = "/waiting-list/{request_id}",
+  params(
+    ("request_id" = u32, Path, description = "id of the request"),
+  ),
+  request_body = ProcessWaitingRequest,
+  responses(
+      (status = 200, description = "Processes waiting list item successfully"),
+      (status = 404, description = "Not found joining request"),
+      (status = 403, description = "The current user doesn't have permission to access the resource"),
+      (status = 401, description = "The current user doesn't have right to access the resource"),
+      (status = 500, description = "Database error")
+  ),
+)]
+pub async fn process_joining_request(
+  State(app_state): State<Arc<AppState>>,
+  cookie_jar: CookieJar,
+  Path(request_id): Path<i32>,
+  Json(process_form): Json<ProcessWaitingRequest>,
+) -> Result<(StatusCode, Body), ApiError> {
+  let conn = &mut app_state
+    .db_pool
+    .get()
+    .map_err(|err| ApiError::DatabaseError(DBError::ConnectionError(err)))?;
+
+  let join_request = get_waiting_list_object(conn, request_id)
+    .map_err(|_|ApiError::new_database_query_err("Unable to get waiting list"))?
+    .ok_or(ApiError::NotFound("Not found joining request".into()))?;
+  
+  validate_owner_of_group(conn, cookie_jar, join_request.group_id)?;
+  
+  services::group::process_joining_request(conn, join_request, process_form.is_approved)
+  .map_err(|_|ApiError::new_database_query_err("Unable to process joining request"))?;
+
+  Ok((StatusCode::OK, Body::empty()))
 }
