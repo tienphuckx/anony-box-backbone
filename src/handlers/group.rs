@@ -353,8 +353,9 @@ pub async fn get_list_groups_by_user_id(
         groups::name,
         groups::group_code,
         groups::expired_at,
+        groups::created_at,
       ))
-      .load::<(i32, String, String, Option<chrono::NaiveDateTime>)>(conn)
+      .load::<(i32, String, String, Option<chrono::NaiveDateTime>, Option<chrono::NaiveDateTime>)>(conn)
       .map_err(|err| {
         tracing::error!("Failed to load groups for user_id {}: {:?}", user_id, err);
         DBError::QueryError(format!("Error loading groups: {:?}", err))
@@ -371,14 +372,16 @@ pub async fn get_list_groups_by_user_id(
   }
 
   // For each group, find the latest message
-  let group_list: Result<Vec<GroupInfo>, DBError> = user_groups
-      .into_iter()
-      .map(|(group_id, group_name, group_code, expired_at)| {
-        tracing::info!(
-                "Group found: group_id = {}, group_name = {}, group_code = {}",
+    let group_list: Result<Vec<GroupInfo>, DBError> = user_groups
+        .into_iter()
+        .map(|(group_id, group_name, group_code, expired_at, created_at)| {
+            tracing::info!(
+                "Group found: group_id = {}, group_name = {}, group_code = {}, expired_at = {}, created_at = {}",
                 group_id,
                 group_name,
-                group_code
+                group_code,
+                expired_at.map_or("None".to_string(), |dt| dt.to_string()),
+                created_at.map_or("None".to_string(), |dt| dt.to_string())
             );
 
         // Get the latest message for this group
@@ -409,6 +412,7 @@ pub async fn get_list_groups_by_user_id(
           expired_at: expired_at.unwrap_or_default().to_string(),
           latest_ms_content,
           latest_ms_time: latest_ms_time.to_string(),
+          created_at: expired_at.unwrap_or_default().to_string(),
         })
       })
       .collect();

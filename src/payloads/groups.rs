@@ -47,6 +47,7 @@ pub struct GroupInfo {
   pub expired_at: String,
   pub latest_ms_content: String,
   pub latest_ms_time: String,
+  pub created_at: String,
 }
 
 #[derive(Serialize, ToSchema)]
