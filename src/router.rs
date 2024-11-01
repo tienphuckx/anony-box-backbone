@@ -57,7 +57,7 @@ pub fn init_router() -> Router<Arc<AppState>> {
     .route("/send-msg", post(handlers::message::send_msg))
       .route(
         "/group-detail/:group_id",
-        get(handlers::message::get_group_detail_by_group_id),
+        get(handlers::message::get_group_detail_with_extra_info),
       )
     .route(
       "/get-latest-messages/:group_code",

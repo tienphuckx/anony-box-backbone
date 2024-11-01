@@ -1,9 +1,9 @@
 use crate::database::models::NewMessageText;
-use crate::database::schema::users;
+use crate::database::schema::{users, waiting_list};
 use crate::database::schema::{groups, messages_text, participants};
 use crate::errors::DBError;
 use crate::payloads::common::CommonResponse;
-use crate::payloads::messages::{GetMessagesResponse, MessageResponse};
+use crate::payloads::messages::{GetMessagesResponse, GroupDetailResponse, MessageResponse};
 use crate::payloads::messages::{MessageWithUser, SendMessageRequest, SendMessageResponse};
 use crate::AppState;
 use axum::extract::Path;
@@ -11,6 +11,7 @@ use axum::{extract::State, Json};
 use chrono::Utc;
 use diesel::prelude::*;
 use std::sync::Arc;
+use diesel::dsl::count;
 
 pub async fn send_msg(
   State(app_state): State<Arc<AppState>>,
@@ -86,24 +87,121 @@ pub async fn send_msg(
 ///    - username
 ///    - time
 ///    - reaction data
-pub async fn get_group_detail_by_group_id(
+// pub async fn get_group_detail_by_group_id(
+//     State(app_state): State<Arc<AppState>>,
+//     Path(group_id): Path<String>,
+// ) -> Result<Json<GetMessagesResponse>, DBError> {
+//     tracing::debug!("GET: /get_group_detail_by_group_id");
+//
+//     // Parse group_id to i32 and handle parsing error
+//     let group_id = group_id.parse::<i32>().map_err(|_| DBError::QueryError("Invalid group_id".to_string()))?;
+//
+//     let conn = &mut app_state.db_pool.get().map_err(DBError::ConnectionError)?;
+//
+//     // Query the latest messages using group_code
+//     let messages = messages_text::table
+//         .inner_join(users::table.on(users::id.eq(messages_text::user_id)))
+//         .inner_join(groups::table.on(groups::id.eq(messages_text::group_id)))
+//         .filter(groups::id.eq(group_id))
+//         .order(messages_text::created_at.desc())
+//         .limit(10)
+//         .select((
+//             messages_text::id,
+//             messages_text::content,
+//             messages_text::message_type,
+//             messages_text::created_at,
+//             messages_text::user_id,
+//             users::username,
+//         ))
+//         .load::<MessageWithUser>(conn)
+//         .map_err(|err| {
+//             tracing::error!(
+//         "Error querying messages with user info by group code: {:?}",
+//         err
+//       );
+//             DBError::QueryError("Error querying messages".to_string())
+//         })?;
+//
+//     // Build the response
+//     let messages_response = messages
+//         .into_iter()
+//         .map(|message| MessageResponse {
+//             id: message.id,
+//             content: message.content,
+//             message_type: message.message_type,
+//             created_at: message.created_at,
+//             user_id: message.user_id,
+//             user_name: message.user_name,
+//         })
+//         .collect();
+//
+//     Ok(Json(GetMessagesResponse {
+//         messages: messages_response,
+//     }))
+// }
+
+// use diesel::dsl::count;
+// use diesel::prelude::*;
+// use crate::schema::{groups, participants, waiting_list, messages_text};
+// use crate::models::{GroupDetailResponse, MessageWithUser, DBError};
+
+pub async fn get_group_detail_with_extra_info(
     State(app_state): State<Arc<AppState>>,
-    Path(group_id): Path<String>,
-) -> Result<Json<GetMessagesResponse>, DBError> {
-    tracing::debug!("GET: /get_group_detail_by_group_id");
+    Path(group_id): Path<i32>,
+) -> Result<Json<GroupDetailResponse>, DBError> {
+    tracing::debug!("GET: /group/detail/{}", group_id);
 
-    // Parse group_id to i32 and handle parsing error
-    let group_id = group_id.parse::<i32>().map_err(|_| DBError::QueryError("Invalid group_id".to_string()))?;
+    let conn = &mut app_state.db_pool.get().map_err(|err| {
+        tracing::error!("Failed to get connection from pool: {:?}", err);
+        DBError::ConnectionError(err)
+    })?;
 
-    let conn = &mut app_state.db_pool.get().map_err(DBError::ConnectionError)?;
-
-    // Query the latest messages using group_code
-    let messages = messages_text::table
-        .inner_join(users::table.on(users::id.eq(messages_text::user_id)))
-        .inner_join(groups::table.on(groups::id.eq(messages_text::group_id)))
+    let group_info = groups::table
         .filter(groups::id.eq(group_id))
+        .select((
+            groups::name,
+            groups::created_at.nullable(), // Ensure created_at is nullable
+            groups::expired_at.nullable(), // Ensure expired_at is nullable
+        ))
+        .first::<(String, Option<chrono::NaiveDateTime>, Option<chrono::NaiveDateTime>)>(conn)
+        .optional() // Add .optional() here
+        .map_err(|err| {
+            tracing::error!("Failed to get group info for group_id {}: {:?}", group_id, err);
+            DBError::QueryError(format!("Group not found: {:?}", err))
+        })?;
+
+    // Check if group_info is None, return an error if no group is found
+    let (group_name, created_at, expired_at) = match group_info {
+        Some(info) => info,
+        None => return Err(DBError::QueryError("Group not found".to_string())),
+    };
+
+
+    // Count joined members
+    let joined_member = participants::table
+        .filter(participants::group_id.eq(group_id))
+        .select(count(participants::user_id))
+        .first::<i64>(conn)
+        .map_err(|err| {
+            tracing::error!("Failed to count joined members for group_id {}: {:?}", group_id, err);
+            DBError::QueryError(format!("Error counting joined members: {:?}", err))
+        })?;
+
+    // Count waiting members
+    let waiting_member = waiting_list::table
+        .filter(waiting_list::group_id.eq(group_id))
+        .select(count(waiting_list::user_id))
+        .first::<i64>(conn)
+        .map_err(|err| {
+            tracing::error!("Failed to count waiting members for group_id {}: {:?}", group_id, err);
+            DBError::QueryError(format!("Error counting waiting members: {:?}", err))
+        })?;
+
+    // Fetch messages (limit to latest messages if needed)
+    let messages = messages_text::table
+        .filter(messages_text::group_id.eq(group_id))
+        .inner_join(users::table.on(users::id.eq(messages_text::user_id)))
         .order(messages_text::created_at.desc())
-        .limit(10)
         .select((
             messages_text::id,
             messages_text::content,
@@ -114,30 +212,23 @@ pub async fn get_group_detail_by_group_id(
         ))
         .load::<MessageWithUser>(conn)
         .map_err(|err| {
-            tracing::error!(
-        "Error querying messages with user info by group code: {:?}",
-        err
-      );
-            DBError::QueryError("Error querying messages".to_string())
+            tracing::error!("Failed to load messages for group_id {}: {:?}", group_id, err);
+            DBError::QueryError(format!("Error loading messages: {:?}", err))
         })?;
 
-    // Build the response
-    let messages_response = messages
-        .into_iter()
-        .map(|message| MessageResponse {
-            id: message.id,
-            content: message.content,
-            message_type: message.message_type,
-            created_at: message.created_at,
-            user_id: message.user_id,
-            user_name: message.user_name,
-        })
-        .collect();
+    let response = GroupDetailResponse {
+        group_name,
+        joined_member: joined_member as i32,
+        waiting_member: waiting_member as i32,
+        created_at: created_at.map(|dt| dt.to_string()).unwrap_or_default(), // Convert to String if Some, or use default
+        expired_at: expired_at.map(|dt| dt.to_string()).unwrap_or_default(), // Similar for expired_at
+        messages,
+    };
 
-    Ok(Json(GetMessagesResponse {
-        messages: messages_response,
-    }))
+
+    Ok(Json(response))
 }
+
 
 
 pub async fn get_latest_messages_by_code(

@@ -301,7 +301,11 @@ pub async fn join_group(
   Ok((new_jar, Json(group_rs)))
 }
 
-// Get user groups by user ID
+/// ### Handler for the `/gr/list/{user_id}`
+///
+/// This api return list group of user by user id, display in left bar (desktop)
+/// 1. **User Validation**:
+///    - Checks for an existing `user_id`
 #[utoipa::path(
   get,
   path = "/gr/list/{user_id}",
