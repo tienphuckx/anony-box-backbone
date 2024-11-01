@@ -65,3 +65,14 @@ pub struct MessageWithUser {
     pub user_id: i32,
     pub user_name: String,
 }
+
+#[derive(Serialize)]
+pub struct GroupDetailResponse {
+    pub group_name: String,
+    pub max_member: i32,
+    pub joined_member: i32,
+    pub waiting_member: i32,
+    pub created_at: String,
+    pub expired_at: String,
+    pub messages: Vec<MessageWithUser>,
+}

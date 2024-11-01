@@ -22,7 +22,7 @@ use crate::{
 #[openapi(
   paths(
     handlers::common::home,
-    handlers::group::get_user_groups,
+    handlers::group::get_list_groups_by_user_id,
     handlers::group::create_user_and_group,
     handlers::group::join_group,
     handlers::group::get_waiting_list,
@@ -33,7 +33,7 @@ use crate::{
     NewGroupForm, NewUserRequest,
     UserResponse, CommonResponse<UserResponse>,
     GroupListResponse, GroupInfo,
-    ListResponse<WaitingListResponse>, 
+    ListResponse<WaitingListResponse>,
   ))
 )]
 struct ApiDoc;
@@ -50,18 +50,18 @@ pub fn init_router() -> Router<Arc<AppState>> {
       post(handlers::group::create_user_and_group),
     )
     .route("/join-group", post(handlers::group::join_group))
+    .route("/gr/list/:user_id", get(handlers::group::get_list_groups_by_user_id))
     .route("/group/:group_id/waiting-list", get(handlers::group::get_waiting_list))
-    .route("/gr/list/:user_id", get(handlers::group::get_user_groups))
     .route("/add-user", post(handlers::user::add_user)) //first: create a new user
     .route(
       "/create-group",
       post(handlers::group::create_group_with_user),
     )
     .route("/send-msg", post(handlers::message::send_msg))
-    .route(
-      "/get-latest-messages",
-      post(handlers::message::get_latest_messages),
-    )
+      .route(
+        "/group-detail/:group_id",
+        get(handlers::message::get_group_detail_with_extra_info),
+      )
     .route(
       "/get-latest-messages/:group_code",
       get(handlers::message::get_latest_messages_by_code),
