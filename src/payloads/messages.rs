@@ -69,6 +69,7 @@ pub struct MessageWithUser {
 #[derive(Serialize)]
 pub struct GroupDetailResponse {
     pub group_name: String,
+    pub max_member: i32,
     pub joined_member: i32,
     pub waiting_member: i32,
     pub created_at: String,
