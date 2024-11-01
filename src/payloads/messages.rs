@@ -31,12 +31,6 @@ pub struct SendMessageResponse {
 use chrono::NaiveDateTime;
 use diesel::{Queryable};
 
-// Request structure
-#[derive(Deserialize)]
-pub struct GetMessagesRequest {
-    pub group_id: i32,
-}
-
 
 #[derive(Serialize)]
 pub struct MessageResponse {
