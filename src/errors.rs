@@ -43,8 +43,19 @@ pub enum ApiError {
   #[error("The user already joined the group")]
   AlreadyJoined,
 
+  #[error("The current user doesn't have permission to access the resource")]
+  Forbidden,
+
+  #[error("The current user doesn't have right to access the resource")]
+  Unauthorized,
+
   #[error("Unknown error")]
   Unknown,
+}
+impl ApiError {
+  pub fn new_database_query_err(cause: &str) -> Self {
+    Self::DatabaseError(DBError::QueryError(cause.to_string()))
+  }
 }
 
 impl IntoResponse for ApiError {
@@ -53,6 +64,8 @@ impl IntoResponse for ApiError {
       Self::NotFound(_) => (StatusCode::NOT_FOUND, self.to_string()),
       Self::AlreadyJoined => (StatusCode::BAD_REQUEST, self.to_string()),
       Self::ExistedResource(_) => (StatusCode::BAD_REQUEST, self.to_string()),
+      Self::Forbidden => (StatusCode::FORBIDDEN, self.to_string()),
+      Self::Unauthorized => (StatusCode::UNAUTHORIZED, self.to_string()),
       // Yes we want to hide internal message error from user
       _ => (
         StatusCode::SERVICE_UNAVAILABLE,

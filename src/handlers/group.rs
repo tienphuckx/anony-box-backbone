@@ -1,7 +1,7 @@
 use std::{sync::Arc, time::Duration};
 
 use axum::{
-  extract::{Path, State},
+  extract::{Path, Query, State},
   http::StatusCode,
   Json,
 };
@@ -16,20 +16,24 @@ use time::OffsetDateTime;
 
 use crate::{
   database::{
-    models::{self, Group, NewGroup, User, WaitingList},
-    schema,
+    models::{self, Group, NewGroup, NewWaitingList, User, WaitingList},
+    schema::{self},
   },
   errors::{ApiError, DBError},
   payloads::{
     self,
-    groups::{GroupResult, JoinGroupForm, NewGroupForm},
+    common::{ListResponse, PageRequest},
+    groups::{GroupResult, JoinGroupForm, NewGroupForm, WaitingListResponse},
   },
   services::{
-    group::check_user_join_group,
+    group::{check_owner_of_group, check_user_join_group, get_count_waiting_list},
     user::{create_user, get_user_by_code},
   },
-  utils::crypto::generate_secret_code,
-  AppState,
+  utils::{
+    crypto::generate_secret_code,
+    minors::{calculate_offset_from_page, calculate_total_pages, get_value_from_cookie},
+  },
+  AppState, DEFAULT_PAGE_SIZE, DEFAULT_PAGE_START,
 };
 
 use crate::payloads::groups::{GroupInfo, GroupListResponse};
@@ -236,7 +240,7 @@ pub async fn join_group(
       let mut is_waiting = false;
 
       if group.approval_require.unwrap() {
-        let waiting_list = WaitingList {
+        let waiting_list = NewWaitingList {
           user_id: user.id,
           group_id: group.id,
           message: Some(join_group_form.message.clone()),
@@ -467,4 +471,139 @@ pub async fn create_group_with_user(
   };
 
   Ok(Json(CommonResponse::success(group_response)))
+}
+
+///### Validate user is an owner of the group_id or not
+///
+/// If user is not an owner an api error will be propagated
+fn validate_owner_of_group(
+  conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
+  cookie_jar: CookieJar,
+  group_id: i32,
+) -> Result<(), ApiError> {
+  let user_code_cookie = get_value_from_cookie(cookie_jar, "user_code");
+  if user_code_cookie.is_none() {
+    return Err(ApiError::Forbidden);
+  }
+  let current_user = get_user_by_code(conn, &user_code_cookie.unwrap())
+    .map_err(|_| ApiError::new_database_query_err("Unable to get current user from database"))?;
+
+  if current_user.is_none() {
+    return Err(ApiError::Forbidden);
+  }
+  let User { id: user_id, .. } = current_user.unwrap();
+
+  if !check_owner_of_group(conn, user_id, group_id)
+    .map_err(|_| ApiError::new_database_query_err("Failed to check owner of group"))?
+  {
+    return Err(ApiError::Unauthorized);
+  }
+  Ok(())
+}
+
+/// ### Handler for API `/group/:group_id/waiting-list`
+///
+/// Get waiting list from specific group id
+///
+/// **Notice**: User must be an owner of the group
+///
+
+#[utoipa::path(
+  get,
+  path = "/group/{group_id}/waiting-list",
+  params(
+    ("group_id" = u32, Path, description = "id of the group"),
+    ("page" = Option<u32>, Query, description = "page index", ),
+    ("limit" = Option<u32>, Query, description = "the number of items per a page")
+  ),
+  responses(
+      (status = 200, description = "Get waiting list successfully",
+      body = ListResponse<WaitingListResponse>, content_type = "application/json",
+        example = json!(
+            {
+                "count": 2,
+                "total_pages": 1,
+                "objects": [
+                  {
+                    "id": 2,
+                    "user_id": 39,
+                    "username": "thanhnguyen",
+                    "message": "Hello my join request 1"
+                  },
+                  {
+                    "id": 4,
+                    "user_id": 40,
+                    "username": "sangtien",
+                    "message": "Hello my join request 2"
+                  }
+                ]
+              }
+              
+        )),
+      (status = 404, description = "The group does not have any waiting request"),
+      (status = 403, description = "The current user doesn't have permission to access the resource"),
+      (status = 401, description = "The current user doesn't have right to access the resource"),
+      (status = 500, description = "Database error")
+  ),
+)]
+pub async fn get_waiting_list(
+  State(app_state): State<Arc<AppState>>,
+  cookie_jar: CookieJar,
+  Path(group_id): Path<i32>,
+  Query(page): Query<PageRequest>,
+) -> Result<(StatusCode, Json<ListResponse<WaitingListResponse>>), ApiError> {
+  let conn = &mut app_state
+    .db_pool
+    .get()
+    .map_err(|err| ApiError::DatabaseError(DBError::ConnectionError(err)))?;
+
+  validate_owner_of_group(conn, cookie_jar, group_id)?;
+
+  let PageRequest { page, limit } = page;
+  let mut page = page.unwrap_or(DEFAULT_PAGE_START);
+  if page == 0{
+    page = DEFAULT_PAGE_START;
+  }
+  let per_page = limit.unwrap_or(DEFAULT_PAGE_SIZE) as i64;
+  let offset = calculate_offset_from_page(page as u64, per_page as u64);
+  use schema::waiting_list::dsl::group_id as w_group_id;
+
+  let waiting_objects: Vec<(WaitingList, User)> = schema::waiting_list::table
+    .inner_join(schema::users::table)
+    .filter(w_group_id.eq(group_id))
+    .limit(per_page)
+    .offset(offset as i64)
+    .select((WaitingList::as_select(), User::as_select()))
+    .load::<(WaitingList, User)>(conn)
+    .map_err(|_| {
+      ApiError::DatabaseError(DBError::QueryError("Could not get waiting list".into()))
+    })?;
+  if waiting_objects.is_empty() {
+    return Err(ApiError::NotFound(
+      "No waiting list items".into()
+    ));
+  }
+  let waiting_objects = waiting_objects
+    .iter()
+    .map(|object| WaitingListResponse {
+      id: object.0.id,
+      user_id: object.1.id,
+      username: object.1.username.clone(),
+      message: object.0.message.clone().unwrap_or_default(),
+    })
+    .collect::<Vec<WaitingListResponse>>();
+  let count = get_count_waiting_list(conn, group_id).map_err(|_| {
+    ApiError::DatabaseError(DBError::QueryError(
+      "Could not get amount of waiting list".into(),
+    ))
+  })?;
+  let total_pages = calculate_total_pages(count as u64, per_page as u64);
+  tracing::debug!("total_pages: {}", total_pages);
+  let response = ListResponse {
+    count: count as i32,
+    total_pages: total_pages as u16,
+    objects: waiting_objects,
+  };
+
+  Ok((StatusCode::OK, Json(response)))
 }
