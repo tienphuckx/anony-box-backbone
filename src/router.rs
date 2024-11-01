@@ -11,8 +11,8 @@ use utoipa_swagger_ui::SwaggerUi;
 use crate::{
   handlers,
   payloads::{
-    common::CommonResponse,
-    groups::{GroupInfo, GroupListResponse, NewGroupForm},
+    common::{CommonResponse, ListResponse},
+    groups::{GroupInfo, GroupListResponse, NewGroupForm, WaitingListResponse},
     user::{NewUserRequest, UserResponse},
   },
   AppState,
@@ -25,13 +25,15 @@ use crate::{
     handlers::group::get_list_groups_by_user_id,
     handlers::group::create_user_and_group,
     handlers::group::join_group,
+    handlers::group::get_waiting_list,
     handlers::user::add_user_docs
     
   ),
   components(schemas(
     NewGroupForm, NewUserRequest,
     UserResponse, CommonResponse<UserResponse>,
-    GroupListResponse, GroupInfo
+    GroupListResponse, GroupInfo,
+    ListResponse<WaitingListResponse>,
   ))
 )]
 struct ApiDoc;
@@ -49,6 +51,7 @@ pub fn init_router() -> Router<Arc<AppState>> {
     )
     .route("/join-group", post(handlers::group::join_group))
     .route("/gr/list/:user_id", get(handlers::group::get_list_groups_by_user_id))
+    .route("/group/:group_id/waiting-list", get(handlers::group::get_waiting_list))
     .route("/add-user", post(handlers::user::add_user)) //first: create a new user
     .route(
       "/create-group",

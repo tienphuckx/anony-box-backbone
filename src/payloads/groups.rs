@@ -79,3 +79,11 @@ pub struct GroupResponse {
   pub group_code: String,
   pub expired_at: String,
 }
+
+#[derive(Serialize, ToSchema)]
+pub struct WaitingListResponse {
+  pub id: i32,
+  pub user_id: i32,
+  pub username: String,
+  pub message: String,
+}

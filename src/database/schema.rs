@@ -38,7 +38,6 @@ diesel::table! {
     }
 }
 
-// will custom later that can be able to stored: text and attachment
 diesel::table! {
     use diesel::sql_types::*;
     use super::sql_types::Messagetype;
@@ -54,13 +53,12 @@ diesel::table! {
     }
 }
 
-// stored message text only for testing
 diesel::table! {
-    use diesel::sql_types::*;
     messages_text (id) {
         id -> Int4,
         #[max_length = 1000]
         content -> Nullable<Varchar>,
+        #[max_length = 255]
         message_type -> Varchar,
         created_at -> Timestamp,
         user_id -> Int4,
@@ -72,6 +70,7 @@ diesel::table! {
     participants (user_id, group_id) {
         user_id -> Int4,
         group_id -> Int4,
+        id -> Int4,
     }
 }
 
@@ -93,6 +92,7 @@ diesel::table! {
         #[max_length = 1000]
         message -> Nullable<Varchar>,
         created_at -> Timestamp,
+        id -> Int4,
     }
 }
 
@@ -100,20 +100,18 @@ diesel::joinable!(attachments -> messages (message_id));
 diesel::joinable!(groups -> users (user_id));
 diesel::joinable!(messages -> groups (group_id));
 diesel::joinable!(messages -> users (user_id));
+diesel::joinable!(messages_text -> groups (group_id));
+diesel::joinable!(messages_text -> users (user_id));
 diesel::joinable!(participants -> groups (group_id));
 diesel::joinable!(participants -> users (user_id));
 diesel::joinable!(waiting_list -> groups (group_id));
 diesel::joinable!(waiting_list -> users (user_id));
 
-//for message text
-diesel::joinable!(messages_text -> groups (group_id));
-diesel::joinable!(messages_text -> users (user_id));
-
 diesel::allow_tables_to_appear_in_same_query!(
   attachments,
   groups,
   messages,
-  messages_text, // msg text only
+  messages_text,
   participants,
   users,
   waiting_list,

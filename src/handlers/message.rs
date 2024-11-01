@@ -24,7 +24,7 @@ pub async fn send_msg(
   let participant_exists = participants::table
     .filter(participants::user_id.eq(msg_req.user_id))
     .filter(participants::group_id.eq(msg_req.group_id))
-    .first::<(i32, i32)>(conn)
+    .first::<(i32, i32, i32)>(conn)
     .optional()
     .map_err(|err| {
       tracing::error!(
