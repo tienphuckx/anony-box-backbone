@@ -58,7 +58,6 @@ pub struct GroupListResponse {
   pub list_gr: Vec<GroupInfo>,
 }
 
-
 /**
   for create a group with user id and others field
   case: user already exists
@@ -86,4 +85,9 @@ pub struct WaitingListResponse {
   pub user_id: i32,
   pub username: String,
   pub message: String,
+}
+
+#[derive(Deserialize, ToSchema)]
+pub struct ProcessWaitingRequest {
+  pub is_approved: bool,
 }
