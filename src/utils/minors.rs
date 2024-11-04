@@ -1,5 +1,6 @@
 use axum_extra::extract::CookieJar;
 
+#[allow(dead_code)]
 pub fn get_value_from_cookie(cookie_jar: CookieJar, key: &str) -> Option<String> {
   let cookie_value = cookie_jar.get(key);
   if cookie_value.is_none() {

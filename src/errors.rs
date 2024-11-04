@@ -67,10 +67,13 @@ impl IntoResponse for ApiError {
       Self::Forbidden => (StatusCode::FORBIDDEN, self.to_string()),
       Self::Unauthorized => (StatusCode::UNAUTHORIZED, self.to_string()),
       // Yes we want to hide internal message error from user
-      _ => (
-        StatusCode::SERVICE_UNAVAILABLE,
-        "Service unavailable".to_string(),
-      ),
+      err => {
+        tracing::error!("Error Cause: {}", err.to_string());
+        (
+          StatusCode::SERVICE_UNAVAILABLE,
+          "Service unavailable".to_string(),
+        )
+      }
     }
     .into_response();
   }
