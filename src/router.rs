@@ -45,7 +45,10 @@ pub fn get_swagger_ui() -> SwaggerUi {
 
 pub fn init_router() -> Router<Arc<AppState>> {
   Router::new()
+
     .route("/", get(handlers::common::home))
+
+      .route("/del-gr", post(handlers::group::del_gr_req))
     .route(
       "/add-user-group",
       post(handlers::group::create_user_and_group),
@@ -69,6 +72,7 @@ pub fn init_router() -> Router<Arc<AppState>> {
       get(handlers::message::get_latest_messages_by_code),
     )
     .route("/add-user-doc", post(handlers::user::add_user_docs))
+
     .fallback(handlers::common::fallback)
     .merge(get_swagger_ui())
     .layer(

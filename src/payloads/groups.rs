@@ -91,3 +91,16 @@ pub struct WaitingListResponse {
 pub struct ProcessWaitingRequest {
   pub is_approved: bool,
 }
+
+#[derive(Serialize, Deserialize, ToSchema)]
+pub struct DelGroupRequest {
+  pub u_id: i32,
+  pub gr_id: i32
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct DelGroupResponse {
+  pub gr_id: i32,
+  pub gr_code: String,
+  pub del_status: String,
+}

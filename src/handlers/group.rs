@@ -26,7 +26,7 @@ use crate::{
   }, AppState, DEFAULT_PAGE_SIZE, DEFAULT_PAGE_START
 };
 
-use crate::payloads::groups::{GroupInfo, GroupListResponse};
+use crate::payloads::groups::{DelGroupRequest, DelGroupResponse, GroupInfo, GroupListResponse};
 
 use crate::database::schema::{groups, messages_text, participants, users};
 
@@ -681,4 +681,87 @@ pub async fn process_joining_request(
   .map_err(|_|ApiError::new_database_query_err("Unable to process joining request"))?;
 
   Ok((StatusCode::OK, Body::empty()))
+}
+
+#[utoipa::path(
+    post,
+    path = "/del-gr",
+    request_body = DelGroupRequest,
+    responses(
+        (status = 200, description = "Group deleted successfully", body = CommonResponse<DelGroupResponse>),
+        (status = 404, description = "User or group not found", body = CommonResponse<String>),
+        (status = 401, description = "User not authorized to delete this group", body = CommonResponse<String>),
+        (status = 500, description = "Database error", body = CommonResponse<String>)
+    ),
+    security(
+        ("api_key" = [])
+    ),
+    tag = "Del gr"
+)]
+pub async fn del_gr_req(
+    State(app_state): State<Arc<AppState>>,
+    Json(req): Json<DelGroupRequest>,
+) -> Result<Json<CommonResponse<DelGroupResponse>>, ApiError> {
+    let conn = &mut app_state
+        .db_pool
+        .get()
+        .map_err(|err| ApiError::DatabaseError(DBError::ConnectionError(err)))?;
+
+    // Check if the user exists
+    let is_user_exists = users::table
+        .find(req.u_id)
+        .first::<models::User>(conn)
+        .optional()
+        .map_err(|err| {
+            tracing::error!("Error checking user_id {}: {:?}", req.u_id, err);
+            ApiError::DatabaseError(DBError::QueryError("Error checking user".to_string()))
+        })?;
+
+    if is_user_exists.is_none() {
+        return Ok(Json(CommonResponse::error(1, "User does not exist")));
+    }
+
+    // Check if the group exists and is not expired
+    use schema::groups::dsl::{id, expired_at, groups}; // Using `id` instead of `group_id`
+    let group = groups
+        .filter(id.eq(&req.gr_id))
+        .filter(expired_at.is_null())
+        .select(Group::as_select())
+        .first::<Group>(conn)
+        .optional()
+        .map_err(|err| {
+            tracing::error!("Error checking group_id {}: {:?}", req.gr_id, err);
+            ApiError::DatabaseError(DBError::QueryError("Error checking group".to_string()))
+        })?;
+
+
+    if let Some(group) = group {
+        // Check if the user is the owner of the group
+        if !check_owner_of_group(conn, req.u_id, req.gr_id)
+            .map_err(|_| ApiError::new_database_query_err("Failed to check owner of group"))?
+        {
+            return Err(ApiError::Unauthorized);
+        }
+
+        // Perform the delete operation if ownership is confirmed
+        diesel::delete(groups.filter(id.eq(&req.gr_id)))
+            .execute(conn)
+            .map_err(|err| {
+                tracing::error!("Failed to delete group_id {}: {:?}", req.gr_id, err);
+                ApiError::DatabaseError(DBError::QueryError("Failed to delete group".to_string()))
+            })?;
+
+        // TODO remove paticipants
+
+        // Return successful deletion response
+        let response = DelGroupResponse {
+            gr_id: group.id,
+            gr_code: group.group_code,
+            del_status: "Deleted successfully".to_string(),
+        };
+
+        Ok(Json(CommonResponse::success(response)))
+    } else {
+        Ok(Json(CommonResponse::error(1, "Group does not exist or is expired")))
+    }
 }
