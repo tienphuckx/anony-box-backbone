@@ -1,6 +1,7 @@
 use std::{env, sync::Arc};
 mod database;
 mod errors;
+mod extractors;
 mod handlers;
 mod payloads;
 mod router;
