@@ -143,7 +143,7 @@ pub async fn get_group_detail_with_extra_info(
     let messages = messages_text::table
         .filter(messages_text::group_id.eq(group_id))
         .inner_join(users::table.on(users::id.eq(messages_text::user_id)))
-        .order(messages_text::created_at.desc())
+        .order(messages_text::created_at.asc())
         .select((
             messages_text::id,
             messages_text::content,
