@@ -28,7 +28,7 @@ use crate::{
 
 use crate::payloads::groups::{DelGroupRequest, DelGroupResponse, GrDetailSettingResponse, GroupInfo, GroupListResponse, UserSettingInfo};
 
-use crate::database::schema::{groups, messages_text, participants, users, waiting_list};
+use crate::database::schema::{attachments, groups, messages, messages_text, participants, users, waiting_list};
 
 use crate::payloads::common::CommonResponse;
 
@@ -742,8 +742,37 @@ pub async fn del_gr_req(
             return Err(ApiError::Unauthorized);
         }
 
+        // Step 1: Delete attachments linked to messages in this group
+        diesel::delete(attachments::table.filter(
+            attachments::message_id.eq_any(
+                messages::table
+                    .select(messages::id)
+                    .filter(messages::group_id.eq(req.gr_id))
+            )
+        ))
+            .execute(conn)
+            .map_err(|err| {
+                tracing::error!("Failed to delete attachments for group_id {}: {:?}", req.gr_id, err);
+                ApiError::DatabaseError(DBError::QueryError("Failed to delete attachments".to_string()))
+            })?;
 
-        // First, delete all related participants
+        // Step 2: Delete messages in the messages table for this group
+        diesel::delete(messages::table.filter(messages::group_id.eq(req.gr_id)))
+            .execute(conn)
+            .map_err(|err| {
+                tracing::error!("Failed to delete messages for group_id {}: {:?}", req.gr_id, err);
+                ApiError::DatabaseError(DBError::QueryError("Failed to delete messages".to_string()))
+            })?;
+
+        // Step 3: Delete messages in the messages_text table for this group
+        diesel::delete(messages_text::table.filter(messages_text::group_id.eq(req.gr_id)))
+            .execute(conn)
+            .map_err(|err| {
+                tracing::error!("Failed to delete messages_text for group_id {}: {:?}", req.gr_id, err);
+                ApiError::DatabaseError(DBError::QueryError("Failed to delete messages_text".to_string()))
+            })?;
+
+        // Step 4: Delete participants related to this group
         diesel::delete(participants::table.filter(participants::group_id.eq(req.gr_id)))
             .execute(conn)
             .map_err(|err| {
@@ -751,7 +780,15 @@ pub async fn del_gr_req(
                 ApiError::DatabaseError(DBError::QueryError("Failed to delete participants".to_string()))
             })?;
 
-        // Then, delete the group
+        // Step 5: Delete waiting_list entries related to this group
+        diesel::delete(waiting_list::table.filter(waiting_list::group_id.eq(req.gr_id)))
+            .execute(conn)
+            .map_err(|err| {
+                tracing::error!("Failed to delete waiting_list for group_id {}: {:?}", req.gr_id, err);
+                ApiError::DatabaseError(DBError::QueryError("Failed to delete waiting_list entries".to_string()))
+            })?;
+
+        // Step 6: Finally, delete the group itself
         diesel::delete(groups.find(req.gr_id))
             .execute(conn)
             .map_err(|err| {
