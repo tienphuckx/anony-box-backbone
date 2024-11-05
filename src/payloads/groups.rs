@@ -120,3 +120,10 @@ pub struct LeaveGroupResponse {
   pub gr_code: String,
 
 }
+
+/// api get group detail setting
+#[derive(Serialize, Deserialize, ToSchema)]
+pub struct GrDetailSettingRequest {
+  pub gr_id: i32,
+  pub u_id: i32
+}

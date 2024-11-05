@@ -696,8 +696,7 @@ pub async fn process_joining_request(
     ),
     security(
         ("api_key" = [])
-    ),
-    tag = "Del gr"
+    )
 )]
 pub async fn del_gr_req(
     State(app_state): State<Arc<AppState>>,
@@ -772,4 +771,11 @@ pub async fn del_gr_req(
     } else {
         Ok(Json(CommonResponse::error(1, "Group does not exist or is expired")))
     }
+}
+
+pub async fn get_gr_setting(
+    State(app_state): State<Arc<AppState>>,
+    Path((gr_id, user_id)): Path<(i32, i32)>,
+) -> String {
+    format!("Group ID: {}, User ID: {}", gr_id, user_id)
 }

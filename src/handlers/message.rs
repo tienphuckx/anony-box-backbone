@@ -102,11 +102,12 @@ pub async fn get_group_detail_with_extra_info(
         .filter(groups::id.eq(group_id))
         .select((
             groups::name,
+            groups::user_id,
             groups::created_at.nullable(),
             groups::expired_at.nullable(),
             groups::maximum_members.nullable(),
         ))
-        .first::<(String, Option<chrono::NaiveDateTime>, Option<chrono::NaiveDateTime>, Option<i32>)>(conn)
+        .first::<(String, i32,Option<chrono::NaiveDateTime>, Option<chrono::NaiveDateTime>, Option<i32>)>(conn)
         .optional()
         .map_err(|err| {
             tracing::error!("Failed to get group info for group_id {}: {:?}", group_id, err);
@@ -114,7 +115,7 @@ pub async fn get_group_detail_with_extra_info(
         })?;
 
     // Check if group_info is None, return an error if no group is found
-    let (group_name, created_at, expired_at, max_member) = match group_info {
+    let (group_name,user_id, created_at, expired_at, max_member) = match group_info {
         Some(info) => info,
         None => return Err(DBError::QueryError("Group not found".to_string())),
     };
@@ -161,6 +162,7 @@ pub async fn get_group_detail_with_extra_info(
     // Build response with max_member included
     let response = GroupDetailResponse {
         group_name,
+        user_id,
         max_member: max_member.unwrap_or_default(), // Use default if max_member is None
         joined_member: joined_member as i32,
         waiting_member: waiting_member as i32,
