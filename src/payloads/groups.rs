@@ -92,6 +92,8 @@ pub struct ProcessWaitingRequest {
   pub is_approved: bool,
 }
 
+
+/// for api delete group
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct DelGroupRequest {
   pub u_id: i32,
@@ -103,4 +105,18 @@ pub struct DelGroupResponse {
   pub gr_id: i32,
   pub gr_code: String,
   pub del_status: String,
+}
+
+/// for api leave group
+#[derive(Serialize, Deserialize, ToSchema)]
+pub struct LeaveGroupRequest {
+  pub u_id: i32,
+  pub gr_id: i32
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct LeaveGroupResponse {
+  pub gr_id: i32,
+  pub gr_code: String,
+
 }

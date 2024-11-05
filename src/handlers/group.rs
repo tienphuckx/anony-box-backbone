@@ -3,7 +3,7 @@ use std::{borrow::Borrow, sync::Arc, time::Duration};
 use axum::{
   body::Body, extract::{Path, Query, State}, http::StatusCode, Json
 };
-use chrono::Utc;
+use chrono::{NaiveDateTime, Utc};
 use diesel::{
   r2d2::ConnectionManager, result::DatabaseErrorKind, Connection, ExpressionMethods, JoinOnDsl,
   OptionalExtension, PgConnection, QueryDsl, RunQueryDsl, SelectableHelper,
@@ -33,6 +33,7 @@ use crate::database::schema::{groups, messages_text, participants, users};
 use crate::payloads::common::CommonResponse;
 
 use crate::payloads::groups::{GroupResponse, NewGroupWithUserIdRequest};
+
 
 /// ### Create new or get existing user from user_code token
 ///
@@ -722,10 +723,9 @@ pub async fn del_gr_req(
     }
 
     // Check if the group exists and is not expired
-    use schema::groups::dsl::{id, expired_at, groups}; // Using `id` instead of `group_id`
+    use schema::groups::dsl::{id, expired_at, groups};
     let group = groups
-        .filter(id.eq(&req.gr_id))
-        .filter(expired_at.is_null())
+        .find(req.gr_id)
         .select(Group::as_select())
         .first::<Group>(conn)
         .optional()
@@ -743,15 +743,23 @@ pub async fn del_gr_req(
             return Err(ApiError::Unauthorized);
         }
 
-        // Perform the delete operation if ownership is confirmed
-        diesel::delete(groups.filter(id.eq(&req.gr_id)))
+
+        // First, delete all related participants
+        diesel::delete(participants::table.filter(participants::group_id.eq(req.gr_id)))
+            .execute(conn)
+            .map_err(|err| {
+                tracing::error!("Failed to delete participants for group_id {}: {:?}", req.gr_id, err);
+                ApiError::DatabaseError(DBError::QueryError("Failed to delete participants".to_string()))
+            })?;
+
+        // Then, delete the group
+        diesel::delete(groups.find(req.gr_id))
             .execute(conn)
             .map_err(|err| {
                 tracing::error!("Failed to delete group_id {}: {:?}", req.gr_id, err);
                 ApiError::DatabaseError(DBError::QueryError("Failed to delete group".to_string()))
             })?;
 
-        // TODO remove paticipants
 
         // Return successful deletion response
         let response = DelGroupResponse {
