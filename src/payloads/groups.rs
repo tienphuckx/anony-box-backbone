@@ -121,9 +121,24 @@ pub struct LeaveGroupResponse {
 
 }
 
-/// api get group detail setting
+/// Api get group detail setting
+
 #[derive(Serialize, Deserialize, ToSchema)]
-pub struct GrDetailSettingRequest {
-  pub gr_id: i32,
-  pub u_id: i32
+pub struct GrDetailSettingResponse {
+  pub group_id: i32,
+  pub group_name: String,
+  pub group_code: String,
+  pub expired_at: String,
+  pub maximum_members: i32,
+  pub total_joined_member: i32,
+  pub list_joined_member: Vec<UserSettingInfo>,
+  pub total_waiting_member: i32,
+  pub list_waiting_member: Vec<UserSettingInfo>,
+}
+
+#[derive(Serialize, Deserialize, ToSchema)]
+pub struct UserSettingInfo {
+  pub user_id: i32,
+  pub username: String,
+  pub user_code: String,
 }

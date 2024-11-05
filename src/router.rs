@@ -12,7 +12,7 @@ use crate::{
   handlers,
   payloads::{
     common::{CommonResponse, ListResponse},
-    groups::{GroupInfo, GroupListResponse, NewGroupForm, WaitingListResponse, DelGroupResponse, DelGroupRequest},
+    groups::{GroupInfo, GroupListResponse, NewGroupForm, WaitingListResponse, DelGroupResponse, DelGroupRequest, GrDetailSettingResponse},
     user::{NewUserRequest, UserResponse},
   },
   AppState,
@@ -29,6 +29,7 @@ use crate::handlers::group::get_gr_setting;
     handlers::group::get_waiting_list,
     handlers::group::process_joining_request,
     handlers::group::del_gr_req,
+    handlers::group::get_gr_setting,
     handlers::user::add_user_docs
     
   ),
@@ -37,8 +38,8 @@ use crate::handlers::group::get_gr_setting;
     UserResponse, CommonResponse<UserResponse>,
     GroupListResponse, GroupInfo,
     ListResponse<WaitingListResponse>,
-    DelGroupRequest, DelGroupResponse
-
+    DelGroupRequest, DelGroupResponse,
+    GrDetailSettingResponse
   ))
 )]
 struct ApiDoc;
