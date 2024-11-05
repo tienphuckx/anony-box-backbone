@@ -1,12 +1,15 @@
-use std::{sync::Arc, time::Duration};
+use std::{env, sync::Arc, time::Duration};
 
 use axum::{
   routing::{get, post},
   Router,
 };
+use axum::http::{HeaderValue, Method};
+use dotenvy::dotenv;
 use tower_http::{timeout::TimeoutLayer, trace::TraceLayer};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
+use tower_http::cors::{CorsLayer, Any};
 
 use crate::{
   handlers,
@@ -49,6 +52,22 @@ pub fn get_swagger_ui() -> SwaggerUi {
 }
 
 pub fn init_router() -> Router<Arc<AppState>> {
+
+  // Load environment variables from .env file
+  dotenv().ok();
+
+  // Get WEB_CLIENT from environment variables
+  let web_client_origin = env::var("WEB_CLIENT")
+      .expect("WEB_CLIENT must be set in .env")
+      .parse::<HeaderValue>()
+      .expect("Invalid WEB_CLIENT URL");
+
+  // Configure CORS to allow requests from the web client
+  let cors = CorsLayer::new()
+      .allow_origin(web_client_origin)
+      .allow_methods(vec![Method::GET, Method::POST, Method::OPTIONS])
+      .allow_headers(Any);
+
   Router::new()
 
     .route("/", get(handlers::common::home))
@@ -72,6 +91,7 @@ pub fn init_router() -> Router<Arc<AppState>> {
       (TraceLayer::new_for_http(),
       // Graceful shutdown will wait for outstanding requests to complete. Add a timeout so
       // requests don't hang forever.
+        cors,
       TimeoutLayer::new(Duration::from_secs(10)))
     )
 }
