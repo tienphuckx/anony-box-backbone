@@ -223,9 +223,21 @@ pub async fn create_user_and_group_v1(
             ))
             .execute(conn)?;
 
+        let group_rs = payloads::groups::GroupResult {
+            user_id: user.id,
+            username: user.username,
+            user_code: user.user_code,
+            group_id: group_result.id,
+            group_name: group_result.name,
+            group_code: group_result.group_code,
+            expired_at: group_result.expired_at.unwrap().and_utc().to_string(),
+            is_waiting: false,
+        };
+
         // Construct the success response
         Ok(NewUserAndGroupResponse {
             msg: format!("User '{}' and group '{}' created successfully.", request.username, request.group_name),
+            gr: group_rs
         })
     });
 

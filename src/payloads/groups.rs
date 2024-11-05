@@ -18,7 +18,7 @@ impl NewGroupForm {
   }
 }
 
-#[derive(Serialize, Default, ToSchema)]
+#[derive(Serialize, Deserialize, Default, ToSchema)]
 pub struct GroupResult {
   pub user_id: i32,
   pub username: String,
@@ -156,4 +156,5 @@ pub struct NewUserAndGroupRequest {
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct NewUserAndGroupResponse {
   pub msg: String,
+  pub gr: GroupResult,
 }
