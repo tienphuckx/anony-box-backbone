@@ -1,5 +1,5 @@
 use std::{borrow::Borrow, sync::Arc, time::Duration};
-
+use diesel::result::Error;
 use axum::{
   body::Body, extract::{Path, Query, State}, http::StatusCode, Json
 };
@@ -9,7 +9,7 @@ use diesel::{
   OptionalExtension, PgConnection, QueryDsl, RunQueryDsl, SelectableHelper,
 };
 use r2d2::PooledConnection;
-
+use tracing::error;
 use crate::{
   database::{
     models::{self, Group, NewGroup, NewWaitingList, User, WaitingList},
@@ -26,7 +26,7 @@ use crate::{
   }, AppState, DEFAULT_PAGE_SIZE, DEFAULT_PAGE_START
 };
 
-use crate::payloads::groups::{DelGroupRequest, DelGroupResponse, GrDetailSettingResponse, GroupInfo, GroupListResponse, UserSettingInfo};
+use crate::payloads::groups::{DelGroupRequest, DelGroupResponse, GrDetailSettingResponse, GroupInfo, GroupListResponse, NewUserAndGroupRequest, NewUserAndGroupResponse, UserSettingInfo};
 
 use crate::database::schema::{attachments, groups, messages, messages_text, participants, users, waiting_list};
 
@@ -157,6 +157,88 @@ pub async fn create_user_and_group(
     is_waiting: false,
   };
   Ok(Json(group_rs))
+}
+
+pub async fn create_user_and_group_v1(
+    State(app_state): State<Arc<AppState>>,
+    UserToken(user_token): UserToken,
+    Json(request): Json<NewUserAndGroupRequest>,
+) -> Result<Json<CommonResponse<NewUserAndGroupResponse>>, ApiError> {
+    tracing::debug!("POST: /v1/add-user-group");
+
+    let conn = &mut app_state
+        .db_pool
+        .get()
+        .map_err(|err| ApiError::DatabaseError(DBError::ConnectionError(err)))?;
+
+    // Step 1: Check if the username already exists
+    let existing_user = schema::users::table
+        .filter(schema::users::username.eq(&request.username))
+        .first::<User>(conn)
+        .optional()
+        .map_err(|err| {
+            error!("Error checking if username exists: {:?}", err);
+            ApiError::DatabaseError(DBError::QueryError("Failed to check username".to_string()))
+        })?;
+
+    // If the user exists, return an API error response with a structured message
+    if existing_user.is_some() {
+        return Err(ApiError::ExistedResource(format!(
+            "Username '{}' is already taken",
+            request.username
+        )));
+    }
+
+
+    // Step 2: Begin transaction to create user and group
+    let transaction_rs: Result<NewUserAndGroupResponse, Error> = conn.transaction(|conn| {
+        // Retrieve or create the user
+        let (user, _) = get_or_create_user_from_user_code(conn, user_token.borrow(), &request.username)?;
+
+        // Calculate current and expiration times
+        let current = Utc::now();
+        let expired_at = current + Duration::from_secs((request.duration * 60) as u64);
+
+        // Create a new group
+        let new_group = NewGroup {
+            name: &request.group_name,
+            maximum_members: request.maximum_members,
+            approval_require: request.approval_require,
+            user_id: user.id,
+            created_at: current.naive_local(),
+            expired_at: expired_at.naive_local(),
+            group_code: &generate_secret_code(&request.group_name),
+        };
+
+        let group_result = diesel::insert_into(schema::groups::table)
+            .values(&new_group)
+            .returning(Group::as_returning())
+            .get_result::<Group>(conn)?;
+
+        // Insert the user into the participants table as a participant of the new group
+        diesel::insert_into(schema::participants::table)
+            .values((
+                schema::participants::user_id.eq(user.id),
+                schema::participants::group_id.eq(group_result.id),
+            ))
+            .execute(conn)?;
+
+        // Construct the success response
+        Ok(NewUserAndGroupResponse {
+            msg: format!("User '{}' and group '{}' created successfully.", request.username, request.group_name),
+        })
+    });
+
+    // Map the result into a common JSON response format
+    match transaction_rs {
+        Ok(response) => Ok(Json(CommonResponse::success(response))),
+        Err(err) => {
+            error!("Transaction error: {:?}", err);
+            Err(ApiError::DatabaseError(DBError::TransactionError(
+                "Failed to create user and group".to_string(),
+            )))
+        }
+    }
 }
 
 /// ### Handler for the `/join-group`

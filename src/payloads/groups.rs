@@ -142,3 +142,18 @@ pub struct UserSettingInfo {
   pub username: String,
   pub user_code: String,
 }
+
+/// Api: create user and group at one time
+#[derive(Serialize, Deserialize, ToSchema)]
+pub struct NewUserAndGroupRequest {
+  pub username: String,
+  pub group_name: String,
+  pub duration: u32,
+  pub maximum_members: Option<i32>,
+  pub approval_require: Option<bool>,
+}
+
+#[derive(Serialize, Deserialize, ToSchema)]
+pub struct NewUserAndGroupResponse {
+  pub msg: String,
+}

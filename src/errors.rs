@@ -12,6 +12,10 @@ pub enum DBError {
 
   #[error("Constraint violation: {0}")]
   ConstraintViolation(String),
+
+  #[error("TransactionError: {0}")]
+  TransactionError(String),
+
 }
 
 impl IntoResponse for DBError {
@@ -24,9 +28,23 @@ impl IntoResponse for DBError {
       Self::ConnectionError(err) => {
         (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response()
       }
+      Self::TransactionError(err) => {
+        (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response()
+      }
     }
   }
 }
+
+impl From<diesel::result::Error> for DBError {
+  fn from(error: diesel::result::Error) -> Self {
+    match error {
+      diesel::result::Error::DatabaseError(_, _) => DBError::QueryError(error.to_string()),
+      diesel::result::Error::NotFound => DBError::QueryError("Record not found".to_string()),
+      _ => DBError::TransactionError(error.to_string()), // Use TransactionError as a fallback
+    }
+  }
+}
+
 
 #[allow(dead_code)]
 #[derive(Error, Debug)]

@@ -73,6 +73,7 @@ pub fn init_router() -> Router<Arc<AppState>> {
     .route("/", get(handlers::common::home))
     .route("/del-gr", post(handlers::group::del_gr_req))
     .route("/add-user-group",post(handlers::group::create_user_and_group))
+    .route("/v1/add-user-group",post(handlers::group::create_user_and_group_v1))
     .route("/join-group", post(handlers::group::join_group))
     .route("/gr/list/:user_id", get(handlers::group::get_list_groups_by_user_id))
     .route("/groups/:group_id/waiting-list", get(handlers::group::get_waiting_list))
@@ -87,11 +88,7 @@ pub fn init_router() -> Router<Arc<AppState>> {
 
     .fallback(handlers::common::fallback)
     .merge(get_swagger_ui())
-    .layer(
-      (TraceLayer::new_for_http(),
-      // Graceful shutdown will wait for outstanding requests to complete. Add a timeout so
-      // requests don't hang forever.
-        cors,
-      TimeoutLayer::new(Duration::from_secs(10)))
-    )
+    .layer(TraceLayer::new_for_http())
+    .layer(cors)
+    .layer(TimeoutLayer::new(Duration::from_secs(10)))
 }
