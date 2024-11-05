@@ -3,7 +3,7 @@ use std::{borrow::Borrow, sync::Arc, time::Duration};
 use axum::{
   body::Body, extract::{Path, Query, State}, http::StatusCode, Json
 };
-use chrono::{NaiveDateTime, Utc};
+use chrono::{Utc};
 use diesel::{
   r2d2::ConnectionManager, result::DatabaseErrorKind, Connection, ExpressionMethods, JoinOnDsl,
   OptionalExtension, PgConnection, QueryDsl, RunQueryDsl, SelectableHelper,
@@ -723,7 +723,7 @@ pub async fn del_gr_req(
     }
 
     // Check if the group exists and is not expired
-    use schema::groups::dsl::{id, expired_at, groups};
+    use schema::groups::dsl::{groups};
     let group = groups
         .find(req.gr_id)
         .select(Group::as_select())

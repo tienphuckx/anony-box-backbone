@@ -12,7 +12,7 @@ use crate::{
   handlers,
   payloads::{
     common::{CommonResponse, ListResponse},
-    groups::{GroupInfo, GroupListResponse, NewGroupForm, WaitingListResponse},
+    groups::{GroupInfo, GroupListResponse, NewGroupForm, WaitingListResponse, DelGroupResponse, DelGroupRequest},
     user::{NewUserRequest, UserResponse},
   },
   AppState,
@@ -27,6 +27,7 @@ use crate::{
     handlers::group::join_group,
     handlers::group::get_waiting_list,
     handlers::group::process_joining_request,
+    handlers::group::del_gr_req,
     handlers::user::add_user_docs
     
   ),
@@ -35,6 +36,8 @@ use crate::{
     UserResponse, CommonResponse<UserResponse>,
     GroupListResponse, GroupInfo,
     ListResponse<WaitingListResponse>,
+    DelGroupRequest, DelGroupResponse
+
   ))
 )]
 struct ApiDoc;
