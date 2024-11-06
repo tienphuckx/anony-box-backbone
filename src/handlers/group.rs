@@ -469,26 +469,34 @@ pub async fn get_list_groups_by_user_id(
                 created_at.map_or("None".to_string(), |dt| dt.to_string())
             );
 
-        // Get the latest message for this group
-        let latest_message = messages_text::table
-            .filter(messages_text::group_id.eq(group_id))
-            .order(messages_text::created_at.desc())
-            .select((
-              messages_text::content,
-              messages_text::created_at,
-            ))
-            .first::<(Option<String>, chrono::NaiveDateTime)>(conn)
-            .optional()
-            .map_err(|err| {
-              tracing::error!(
-                        "Failed to get latest message for group_id {}: {:?}", group_id, err
-                    );
-              DBError::QueryError(format!("Error loading latest message: {:?}", err))
-            })?;
+            use diesel::dsl::sql;
+            use diesel::sql_types::{Nullable, Text, Timestamp};
 
-        let (latest_ms_content, latest_ms_time) = latest_message
-            .map(|(content, time)| (content.unwrap_or_default(), time))
-            .unwrap_or_default();
+            let latest_message = messages_text::table
+                .inner_join(users::table.on(messages_text::user_id.eq(users::id)))
+                .filter(messages_text::group_id.eq(group_id))
+                .order(messages_text::created_at.desc())
+                .select((
+                    sql::<Nullable<Text>>("messages_text.content"),
+                    sql::<Timestamp>("messages_text.created_at"),
+                    sql::<Nullable<Text>>("users.username"),
+                ))
+                .first::<(Option<String>, chrono::NaiveDateTime, Option<String>)>(conn)
+                .optional()
+                .map_err(|err| {
+                    tracing::error!(
+            "Failed to get latest message for group_id {}: {:?}", group_id, err
+        );
+                    DBError::QueryError(format!("Error loading latest message: {:?}", err))
+                })?;
+
+            let (latest_ms_content, latest_ms_time, latest_ms_username) = latest_message
+                .map(|(content, time, username)| (
+                    content.unwrap_or_default(),
+                    time,
+                    username.unwrap_or_default(),
+                ))
+                .unwrap_or_default();
 
         Ok(GroupInfo {
           group_id,
@@ -497,6 +505,7 @@ pub async fn get_list_groups_by_user_id(
           expired_at: expired_at.unwrap_or_default().to_string(),
           latest_ms_content,
           latest_ms_time: latest_ms_time.to_string(),
+          latest_ms_username,
           created_at: created_at.unwrap_or_default().to_string(),
         })
       })
@@ -1027,6 +1036,7 @@ pub async fn get_gr_setting(
             group_name: group.name,
             group_code: group.group_code,
             expired_at: group.expired_at.map_or("N/A".to_string(), |ts| ts.to_string()),
+            created_at: group.created_at.map_or("N/A".to_string(), |ts| ts.to_string()),
             maximum_members: group.maximum_members.unwrap_or_default(),
             total_joined_member,
             list_joined_member,
@@ -1141,6 +1151,7 @@ pub async fn get_gr_setting_v1(
             group_name: group.name,
             group_code: group.group_code,
             expired_at: group.expired_at.map_or("N/A".to_string(), |ts| ts.to_string()),
+            created_at: group.created_at.map_or("N/A".to_string(), |ts| ts.to_string()),
             maximum_members: group.maximum_members.unwrap_or_default(),
             total_joined_member,
             list_joined_member,

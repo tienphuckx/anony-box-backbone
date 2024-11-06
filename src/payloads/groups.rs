@@ -47,6 +47,7 @@ pub struct GroupInfo {
   pub expired_at: String,
   pub latest_ms_content: String,
   pub latest_ms_time: String,
+  pub latest_ms_username: String,
   pub created_at: String,
 }
 
@@ -130,6 +131,7 @@ pub struct GrDetailSettingResponse {
   pub group_name: String,
   pub group_code: String,
   pub expired_at: String,
+  pub created_at: String,
   pub maximum_members: i32,
   pub total_joined_member: i32,
   pub list_joined_member: Vec<UserSettingInfo>,
