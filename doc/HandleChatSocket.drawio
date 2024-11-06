@@ -1,0 +1,82 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/24.7.17 Chrome/128.0.6613.36 Electron/32.0.1 Safari/537.36" version="24.7.17">
+  <diagram name="Page-1" id="OCOAhcU6iWzB0mGFEBKq">
+    <mxGraphModel dx="2115" dy="805" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="HN3X1WJZcgesYLYohcyn-1" value="WS_Sender" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="160" y="155" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="HN3X1WJZcgesYLYohcyn-2" value="WS_Receiver" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="160" y="293" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="HN3X1WJZcgesYLYohcyn-3" value="" style="outlineConnect=0;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;shape=mxgraph.aws3.management_console;fillColor=#D2D3D3;gradientColor=none;" vertex="1" parent="1">
+          <mxGeometry x="-20" y="230" width="63" height="63" as="geometry" />
+        </mxCell>
+        <mxCell id="HN3X1WJZcgesYLYohcyn-4" value="" style="endArrow=classic;html=1;rounded=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" target="HN3X1WJZcgesYLYohcyn-2">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="50" y="262" as="sourcePoint" />
+            <mxPoint x="160" y="170" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="HN3X1WJZcgesYLYohcyn-5" value="" style="endArrow=classic;html=1;rounded=0;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="HN3X1WJZcgesYLYohcyn-1" target="HN3X1WJZcgesYLYohcyn-3">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="90" y="140" as="sourcePoint" />
+            <mxPoint x="140" y="90" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="HN3X1WJZcgesYLYohcyn-7" value="Mapping Message" style="shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fixedSize=1;" vertex="1" parent="1">
+          <mxGeometry x="410" y="283" width="140" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="HN3X1WJZcgesYLYohcyn-9" value="raw&amp;nbsp;&lt;div&gt;ws message&lt;/div&gt;" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="HN3X1WJZcgesYLYohcyn-2" target="HN3X1WJZcgesYLYohcyn-7">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="380" y="490" as="sourcePoint" />
+            <mxPoint x="430" y="440" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="HN3X1WJZcgesYLYohcyn-19" value="" style="endArrow=classic;html=1;rounded=0;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="HN3X1WJZcgesYLYohcyn-29" target="HN3X1WJZcgesYLYohcyn-1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="450" y="170" as="sourcePoint" />
+            <mxPoint x="500" y="120" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="HN3X1WJZcgesYLYohcyn-38" value="propgate message to client" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="HN3X1WJZcgesYLYohcyn-19">
+          <mxGeometry x="-0.0059" y="2" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="HN3X1WJZcgesYLYohcyn-28" value="" style="group" vertex="1" connectable="0" parent="1">
+          <mxGeometry x="780" y="190" width="140" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="HN3X1WJZcgesYLYohcyn-29" value="Receiver" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="HN3X1WJZcgesYLYohcyn-28">
+          <mxGeometry x="35" width="70" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="HN3X1WJZcgesYLYohcyn-30" value="Shared Group channel" style="shape=process;whiteSpace=wrap;html=1;backgroundOutline=1;" vertex="1" parent="HN3X1WJZcgesYLYohcyn-28">
+          <mxGeometry y="30" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="HN3X1WJZcgesYLYohcyn-31" value="&lt;div&gt;Sender&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="HN3X1WJZcgesYLYohcyn-28">
+          <mxGeometry x="35" y="90" width="70" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="HN3X1WJZcgesYLYohcyn-33" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="HN3X1WJZcgesYLYohcyn-32" target="HN3X1WJZcgesYLYohcyn-30">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="800" y="90" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="HN3X1WJZcgesYLYohcyn-37" value="send data" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="HN3X1WJZcgesYLYohcyn-33">
+          <mxGeometry x="0.0182" y="2" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="HN3X1WJZcgesYLYohcyn-32" value="Other connection" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="1030" y="210" width="120" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="HN3X1WJZcgesYLYohcyn-36" value="" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="HN3X1WJZcgesYLYohcyn-7" target="HN3X1WJZcgesYLYohcyn-31">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="690" y="460" as="sourcePoint" />
+            <mxPoint x="740" y="410" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
