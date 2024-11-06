@@ -15,7 +15,15 @@ use crate::{
   handlers,
   payloads::{
     common::{CommonResponse, ListResponse},
-    groups::{GroupInfo, GroupListResponse, NewGroupForm, WaitingListResponse, DelGroupResponse, DelGroupRequest, GrDetailSettingResponse},
+    groups::{GroupInfo,
+             GroupListResponse,
+             NewGroupForm,
+             WaitingListResponse,
+             DelGroupResponse,
+             DelGroupRequest,
+             GrDetailSettingResponse,
+             RmUserRequest,
+             RmUserResponse},
     user::{NewUserRequest, UserResponse},
   },
   AppState,
@@ -34,6 +42,7 @@ use crate::handlers::group::{get_gr_setting, get_gr_setting_v1};
     handlers::group::del_gr_req,
     handlers::group::get_gr_setting,
     handlers::group::get_gr_setting_v1,
+    handlers::group::rm_user_from_gr,
     handlers::user::add_user_docs
     
   ),
@@ -43,7 +52,8 @@ use crate::handlers::group::{get_gr_setting, get_gr_setting_v1};
     GroupListResponse, GroupInfo,
     ListResponse<WaitingListResponse>,
     DelGroupRequest, DelGroupResponse,
-    GrDetailSettingResponse
+    GrDetailSettingResponse,
+    RmUserRequest, RmUserResponse
   ))
 )]
 struct ApiDoc;
@@ -73,6 +83,7 @@ pub fn init_router() -> Router<Arc<AppState>> {
 
     .route("/", get(handlers::common::home))
     .route("/del-gr", post(handlers::group::del_gr_req))
+    .route("/rm-u-from-gr", post(handlers::group::rm_user_from_gr))
     .route("/add-user-group",post(handlers::group::create_user_and_group))
     .route("/v1/add-user-group",post(handlers::group::create_user_and_group_v1))
     .route("/join-group", post(handlers::group::join_group))

@@ -26,7 +26,7 @@ use crate::{
   }, AppState, DEFAULT_PAGE_SIZE, DEFAULT_PAGE_START
 };
 
-use crate::payloads::groups::{DelGroupRequest, DelGroupResponse, GrDetailSettingResponse, GroupInfo, GroupListResponse, NewUserAndGroupRequest, NewUserAndGroupResponse, UserSettingInfo};
+use crate::payloads::groups::{DelGroupRequest, DelGroupResponse, GrDetailSettingResponse, GroupInfo, GroupListResponse, NewUserAndGroupRequest, NewUserAndGroupResponse, RmUserRequest, RmUserResponse, UserSettingInfo};
 
 use crate::database::schema::{attachments, groups, messages, messages_text, participants, users, waiting_list};
 
@@ -1023,6 +1023,7 @@ pub async fn get_gr_setting(
 
         let response = GrDetailSettingResponse {
             group_id: group.id,
+            owner_id: group.user_id,
             group_name: group.name,
             group_code: group.group_code,
             expired_at: group.expired_at.map_or("N/A".to_string(), |ts| ts.to_string()),
@@ -1136,6 +1137,7 @@ pub async fn get_gr_setting_v1(
 
         let response = GrDetailSettingResponse {
             group_id: group.id,
+            owner_id: group.user_id,
             group_name: group.name,
             group_code: group.group_code,
             expired_at: group.expired_at.map_or("N/A".to_string(), |ts| ts.to_string()),
@@ -1151,4 +1153,74 @@ pub async fn get_gr_setting_v1(
     } else {
         Ok(Json(CommonResponse::error(1, "Group does not exist or is expired")))
     }
+}
+
+#[utoipa::path(
+    post,
+    path = "/rm-u-from-gr",
+    request_body = RmUserRequest,
+    responses(
+        (status = 200, description = "Group deleted successfully", body = RmUserResponse),
+        (status = 404, description = "User or group not found", body = RmUserResponse),
+        (status = 401, description = "User not authorized to delete this group", body = RmUserResponse),
+        (status = 500, description = "Database error", body = RmUserResponse)
+    ),
+    security(
+        ("api_key" = [])
+    )
+)]
+pub async fn rm_user_from_gr(
+    State(app_state): State<Arc<AppState>>,
+    Json(req): Json<RmUserRequest>,
+) -> Result<Json<RmUserResponse>, ApiError> {
+    tracing::debug!("POST: /rm-user-from-group");
+
+    // Get a database connection from the pool
+    let conn = &mut app_state
+        .db_pool
+        .get()
+        .map_err(|err| ApiError::DatabaseError(DBError::ConnectionError(err)))?;
+
+    // Check if the group exists
+    use schema::groups::dsl::{groups};
+    let group = groups
+        .find(req.gr_id)
+        .select(Group::as_select()) // Explicitly selecting the fields
+        .first::<Group>(conn)
+        .optional()
+        .map_err(|err| {
+            tracing::debug!("Error checking group_id {}: {:?}", req.gr_id, err);
+            ApiError::DatabaseError(DBError::QueryError("Error checking group existence".to_string()))
+        })?;
+
+    // Return error if group does not exist
+    if group.is_none() {
+        return Err(ApiError::NotFound("Group not found".to_string()));
+    }
+
+    // Check if the requesting user is the group owner
+    if !check_owner_of_group(conn, req.gr_owner_id, req.gr_id)
+        .map_err(|_| ApiError::DatabaseError(DBError::QueryError("Failed to verify group ownership".to_string())))?
+    {
+        return Err(ApiError::Unauthorized);
+    }
+
+    use schema::participants::dsl::{participants, user_id, group_id};
+    let delete_result = diesel::delete(participants.filter(user_id.eq(req.rm_user_id)).filter(group_id.eq(req.gr_id)))
+        .execute(conn)
+        .map_err(|err| {
+            tracing::debug!("Error removing user {} from group {}: {:?}", req.rm_user_id, req.gr_id, err);
+            ApiError::DatabaseError(DBError::QueryError("Error removing user from group".to_string()))
+        })?;
+
+    // If no rows were deleted, the user was not part of the group
+    if delete_result == 0 {
+        return Err(ApiError::NotFound("User not found in the specified group".to_string()));
+    }
+
+    // Return success response
+    Ok(Json(RmUserResponse {
+        res_code: 200,
+        res_msg: "User successfully removed from the group".to_string(),
+    }))
 }

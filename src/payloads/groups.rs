@@ -126,6 +126,7 @@ pub struct LeaveGroupResponse {
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct GrDetailSettingResponse {
   pub group_id: i32,
+  pub owner_id: i32,
   pub group_name: String,
   pub group_code: String,
   pub expired_at: String,
@@ -157,4 +158,18 @@ pub struct NewUserAndGroupRequest {
 pub struct NewUserAndGroupResponse {
   pub msg: String,
   pub gr: GroupResult,
+}
+
+/// Api: remove an user from a griup
+#[derive(Serialize, Deserialize, ToSchema)]
+pub struct RmUserRequest {
+  pub gr_owner_id: i32,
+  pub gr_id: i32,
+  pub rm_user_id: i32,
+}
+
+#[derive(Serialize, Deserialize, ToSchema)]
+pub struct RmUserResponse {
+  pub res_code: i32,
+  pub res_msg: String,
 }
