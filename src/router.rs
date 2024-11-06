@@ -20,7 +20,7 @@ use crate::{
   },
   AppState,
 };
-use crate::handlers::group::get_gr_setting;
+use crate::handlers::group::{get_gr_setting, get_gr_setting_v1};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -33,6 +33,7 @@ use crate::handlers::group::get_gr_setting;
     handlers::group::process_joining_request,
     handlers::group::del_gr_req,
     handlers::group::get_gr_setting,
+    handlers::group::get_gr_setting_v1,
     handlers::user::add_user_docs
     
   ),
@@ -83,6 +84,7 @@ pub fn init_router() -> Router<Arc<AppState>> {
     .route("/send-msg", post(handlers::message::send_msg))
     .route("/group-detail/:group_id", get(handlers::message::get_group_detail_with_extra_info))
     .route("/group-detail/setting/:gr_id/:u_id", get(get_gr_setting))
+    .route("/group-detail/setting/:gr_id", get(get_gr_setting_v1))
     .route("/get-latest-messages/:group_code",get(handlers::message::get_latest_messages_by_code))
     .route("/add-user-doc", post(handlers::user::add_user_docs))
 

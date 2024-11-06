@@ -1039,3 +1039,116 @@ pub async fn get_gr_setting(
         Ok(Json(CommonResponse::error(1, "Group does not exist or is expired")))
     }
 }
+
+#[utoipa::path(
+    get,
+    path = "/group-detail/setting/{gr_id}",
+    params(
+    ("gr_id" = i32, Path, description = "id of the group"),
+    ),
+    responses(
+        (status = 200, description = "Get Group Detail Setting successfully", body = CommonResponse<GrDetailSettingResponse>),
+        (status = 404, description = "User or group not found", body = CommonResponse<String>),
+        (status = 401, description = "User not authorized to delete this group", body = CommonResponse<String>),
+        (status = 500, description = "Database error", body = CommonResponse<String>)
+    ),
+    security(
+        ("api_key" = [])
+    )
+)]
+pub async fn get_gr_setting_v1(
+    State(app_state): State<Arc<AppState>>,
+    Path(gr_id): Path<i32>,
+) -> Result<Json<CommonResponse<GrDetailSettingResponse>>, ApiError> {
+    let conn = &mut app_state
+        .db_pool
+        .get()
+        .map_err(|err| ApiError::DatabaseError(DBError::ConnectionError(err)))?;
+
+    use schema::groups::dsl::{groups};
+    let group = groups
+        .find(gr_id)
+        .select(Group::as_select())
+        .first::<Group>(conn)
+        .optional()
+        .map_err(|err| {
+            tracing::error!("Error checking group_id {}: {:?}", gr_id, err);
+            ApiError::DatabaseError(DBError::QueryError("Error checking group".to_string()))
+        })?;
+
+
+    if let Some(group) = group {
+
+        let total_joined_member = participants::table
+            .filter(participants::group_id.eq(gr_id))
+            .count()
+            .get_result::<i64>(conn)
+            .map_err(|err| {
+                tracing::error!("Error counting joined members: {:?}", err);
+                ApiError::DatabaseError(DBError::QueryError("Failed to count joined members".to_string()))
+            })? as i32;
+
+        // Query to get list of joined members
+        let list_joined_member: Vec<UserSettingInfo> = participants::table
+            .inner_join(users::table.on(users::id.eq(participants::user_id)))
+            .filter(participants::group_id.eq(gr_id))
+            .select((users::id, users::username, users::user_code))
+            .load::<(i32, String, String)>(conn)
+            .map_err(|err| {
+                tracing::error!("Error fetching joined members: {:?}", err);
+                ApiError::DatabaseError(DBError::QueryError("Failed to fetch joined members".to_string()))
+            })?
+            .into_iter()
+            .map(|(user_id, username, user_code)| UserSettingInfo {
+                user_id,
+                username,
+                user_code,
+            })
+            .collect();
+
+        // Query to count total waiting members
+        let total_waiting_member = waiting_list::table
+            .filter(waiting_list::group_id.eq(gr_id))
+            .count()
+            .get_result::<i64>(conn)
+            .map_err(|err| {
+                tracing::error!("Error counting waiting members: {:?}", err);
+                ApiError::DatabaseError(DBError::QueryError("Failed to count waiting members".to_string()))
+            })? as i32;
+
+        // Query to get list of waiting members
+        let list_waiting_member: Vec<UserSettingInfo> = waiting_list::table
+            .inner_join(users::table.on(users::id.eq(waiting_list::user_id)))
+            .filter(waiting_list::group_id.eq(gr_id))
+            .select((users::id, users::username, users::user_code))
+            .load::<(i32, String, String)>(conn)
+            .map_err(|err| {
+                tracing::error!("Error fetching waiting members: {:?}", err);
+                ApiError::DatabaseError(DBError::QueryError("Failed to fetch waiting members".to_string()))
+            })?
+            .into_iter()
+            .map(|(user_id, username, user_code)| UserSettingInfo {
+                user_id,
+                username,
+                user_code,
+            })
+            .collect();
+
+        let response = GrDetailSettingResponse {
+            group_id: group.id,
+            group_name: group.name,
+            group_code: group.group_code,
+            expired_at: group.expired_at.map_or("N/A".to_string(), |ts| ts.to_string()),
+            maximum_members: group.maximum_members.unwrap_or_default(),
+            total_joined_member,
+            list_joined_member,
+            total_waiting_member,
+            list_waiting_member,
+        };
+
+        Ok(Json(CommonResponse::success(response)))
+
+    } else {
+        Ok(Json(CommonResponse::error(1, "Group does not exist or is expired")))
+    }
+}
