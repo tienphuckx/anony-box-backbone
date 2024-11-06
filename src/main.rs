@@ -1,4 +1,4 @@
-use std::{env, sync::Arc};
+use std::{env, net::SocketAddr, sync::Arc};
 mod database;
 mod errors;
 mod extractors;
@@ -63,10 +63,13 @@ async fn main() {
     .expect("Cannot listen on address");
   tracing::info!("Server is listening on {}:{}", server_address, server_port);
   // println!("Server is listening on port {}", server_port);
-  axum::serve(listener, app)
-    .with_graceful_shutdown(shutdown_signal())
-    .await
-    .unwrap();
+  axum::serve(
+    listener,
+    app.into_make_service_with_connect_info::<SocketAddr>(),
+  )
+  .with_graceful_shutdown(shutdown_signal())
+  .await
+  .unwrap();
   tracing::info!("Server is shutdown");
 }
 

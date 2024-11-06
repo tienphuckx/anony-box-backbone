@@ -1,7 +1,7 @@
 use std::{env, sync::Arc, time::Duration};
 
 use axum::{
-  routing::{get, post},
+  routing::{any, get, post},
   Router,
 };
 use axum::http::{HeaderValue, Method};
@@ -85,6 +85,7 @@ pub fn init_router() -> Router<Arc<AppState>> {
     .route("/group-detail/setting/:gr_id/:u_id", get(get_gr_setting))
     .route("/get-latest-messages/:group_code",get(handlers::message::get_latest_messages_by_code))
     .route("/add-user-doc", post(handlers::user::add_user_docs))
+    .route("/ws", any(handlers::socket::ws_handler))
 
     .fallback(handlers::common::fallback)
     .merge(get_swagger_ui())
