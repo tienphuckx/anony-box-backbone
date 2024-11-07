@@ -511,7 +511,9 @@ pub async fn get_list_groups_by_user_id(
       })
       .collect();
 
-  let group_list = group_list?;
+  let mut group_list = group_list?;
+  // Sort the list by `created_at` in descending order
+  group_list.sort_by(|a, b| b.created_at.cmp(&a.created_at));
 
   tracing::info!("Total groups for user_id {}: {}", user_id, group_list.len());
 
