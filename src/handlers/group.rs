@@ -26,7 +26,7 @@ use crate::{
   }, AppState, DEFAULT_PAGE_SIZE, DEFAULT_PAGE_START
 };
 
-use crate::payloads::groups::{DelGroupRequest, DelGroupResponse, GrDetailSettingResponse, GroupInfo, GroupListResponse, NewUserAndGroupRequest, NewUserAndGroupResponse, RmUserRequest, RmUserResponse, UserSettingInfo};
+use crate::payloads::groups::{DelGroupRequest, DelGroupResponse, GrDetailSettingResponse, GroupInfo, GroupListResponse, LeaveGroupRequest, LeaveGroupResponse, NewUserAndGroupRequest, NewUserAndGroupResponse, RmUserRequest, RmUserResponse, UserSettingInfo};
 
 use crate::database::schema::{attachments, groups, messages, messages_text, participants, users, waiting_list};
 
@@ -1233,5 +1233,68 @@ pub async fn rm_user_from_gr(
     Ok(Json(RmUserResponse {
         res_code: 200,
         res_msg: "User successfully removed from the group".to_string(),
+    }))
+}
+
+
+#[utoipa::path(
+    post,
+    path = "/leave-gr",
+    request_body = LeaveGroupRequest,
+    responses(
+        (status = 200, description = "Group deleted successfully", body = LeaveGroupResponse),
+        (status = 404, description = "User or group not found", body = LeaveGroupResponse),
+        (status = 500, description = "Database error", body = LeaveGroupResponse)
+    ),
+    security(
+        ("api_key" = [])
+    )
+)]
+pub async fn user_leave_gr(
+    State(app_state): State<Arc<AppState>>,
+    Json(req): Json<LeaveGroupRequest>,
+) -> Result<Json<LeaveGroupResponse>, ApiError> {
+    tracing::debug!("POST: /leave-gr");
+
+    // Get a database connection from the pool
+    let conn = &mut app_state
+        .db_pool
+        .get()
+        .map_err(|err| ApiError::DatabaseError(DBError::ConnectionError(err)))?;
+
+    // Check if the group exists
+    use schema::groups::dsl::{groups};
+    let group = groups
+        .find(req.gr_id)
+        .select(Group::as_select()) // Explicitly selecting the fields
+        .first::<Group>(conn)
+        .optional()
+        .map_err(|err| {
+            tracing::debug!("Error checking group_id {}: {:?}", req.gr_id, err);
+            ApiError::DatabaseError(DBError::QueryError("Error checking group existence".to_string()))
+        })?;
+
+    // Return error if group does not exist
+    if group.is_none() {
+        return Err(ApiError::NotFound("Group not found".to_string()));
+    }
+
+    use schema::participants::dsl::{participants, user_id, group_id};
+    let delete_result = diesel::delete(participants.filter(user_id.eq(req.u_id)).filter(group_id.eq(req.gr_id)))
+        .execute(conn)
+        .map_err(|err| {
+            tracing::debug!("Error removing user {} from group {}: {:?}", req.u_id, req.gr_id, err);
+            ApiError::DatabaseError(DBError::QueryError("Error removing user from group".to_string()))
+        })?;
+
+    // If no rows were deleted, the user was not part of the group
+    if delete_result == 0 {
+        return Err(ApiError::NotFound("User not found in the specified group".to_string()));
+    }
+
+    // Return success response
+    Ok(Json(LeaveGroupResponse {
+        code: 200,
+        msg: "User successfully leaved from the group".to_string(),
     }))
 }
