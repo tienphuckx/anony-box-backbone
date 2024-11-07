@@ -1,12 +1,5 @@
-use serde::{Deserialize, Serialize, Serializer};
-
-fn serialize_naive_datetime<S>(datetime: &NaiveDateTime, serializer: S) -> Result<S::Ok, S::Error>
-where
-  S: Serializer,
-{
-  let s = datetime.format("%Y-%m-%d %H:%M:%S").to_string();
-  serializer.serialize_str(&s)
-}
+use crate::utils::minors::custom_serde::*;
+use serde::{Deserialize, Serialize};
 
 // Request structure for sending a message
 #[derive(Deserialize)]

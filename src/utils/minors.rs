@@ -28,3 +28,43 @@ pub fn calculate_offset_from_page(page: u64, per_page: u64) -> u64 {
     (page - 1) * per_page
   }
 }
+pub mod custom_serde {
+  use std::str::FromStr;
+
+  use chrono::{DateTime, NaiveDateTime, Utc};
+  use serde::{Deserialize, Deserializer, Serializer};
+
+  pub fn serialize_naive_datetime<S>(
+    datetime: &NaiveDateTime,
+    serializer: S,
+  ) -> Result<S::Ok, S::Error>
+  where
+    S: Serializer,
+  {
+    let s = datetime.format("%Y-%m-%d %H:%M:%S").to_string();
+    serializer.serialize_str(&s)
+  }
+
+  pub fn serialize_date_time_utc<S>(
+    datetime: &DateTime<Utc>,
+    serializer: S,
+  ) -> Result<S::Ok, S::Error>
+  where
+    S: Serializer,
+  {
+    serializer.serialize_str(&datetime.to_rfc3339())
+  }
+
+  pub fn deserialize_with_utc<'de, D>(deserializer: D) -> Result<DateTime<Utc>, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    let raw_str = String::deserialize(deserializer)?;
+    let result = DateTime::from_str(&raw_str);
+    if let Ok(date_time) = result {
+      Ok(date_time)
+    } else {
+      Err(serde::de::Error::custom("Not a valid Utc Datetime format"))
+    }
+  }
+}

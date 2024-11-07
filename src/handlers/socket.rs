@@ -1,3 +1,10 @@
+use crate::{
+  errors::ApiError,
+  extractors::UserToken,
+  payloads::socket::message::{SMessageContent, SMessageType},
+  services::{group::check_user_join_group, message::create_new_message, user::get_user_by_code},
+  AppState,
+};
 use axum::{
   extract::{
     ws::{Message, WebSocket},
@@ -10,13 +17,11 @@ use futures::{sink::SinkExt, stream::StreamExt};
 use std::{net::SocketAddr, ops::ControlFlow, sync::Arc};
 use tokio::sync::broadcast::{self, Sender};
 
-use crate::{
-  errors::ApiError,
-  extractors::UserToken,
-  payloads::socket::message::SMessageType,
-  services::{group::check_user_join_group, user::get_user_by_code},
-  AppState,
-};
+#[derive(Clone, Copy)]
+pub struct GroupSession {
+  pub user_id: i32,
+  pub group_id: i32,
+}
 
 pub async fn ws_group_handler(
   ws: WebSocketUpgrade,
@@ -26,6 +31,7 @@ pub async fn ws_group_handler(
   user_agent: Option<TypedHeader<UserAgent>>,
   ConnectInfo(addr): ConnectInfo<SocketAddr>,
 ) -> Result<impl IntoResponse, ApiError> {
+  // For debugging
   let user_agent = if let Some(TypedHeader(user_agent)) = user_agent {
     user_agent.to_string()
   } else {
@@ -34,9 +40,10 @@ pub async fn ws_group_handler(
   if token.is_none() {
     return Err(ApiError::Forbidden);
   }
-  tracing::info!("User agent: {user_agent} at {addr} connected");
-
+  tracing::debug!("User agent: {user_agent} at {addr} connected");
   let conn = &mut state.db_pool.get().unwrap();
+
+  // Validate user authentication and authorization
   let user = get_user_by_code(conn, &token.unwrap())
     .map_err(|_| ApiError::new_database_query_err("Failed to get user from user code"))?
     .ok_or(ApiError::NotFound("User".into()))?;
@@ -44,16 +51,20 @@ pub async fn ws_group_handler(
   if !check_user_join_group(conn, user.id, group_id).map_err(ApiError::DatabaseError)? {
     return Err(ApiError::Unauthorized);
   }
+  let group_session = GroupSession {
+    user_id: user.id,
+    group_id,
+  };
 
-  tracing::debug!("group_id: {group_id}");
-  Ok(ws.on_upgrade(move |socket| handle_socket(socket, addr, state, group_id)))
+  Ok(ws.on_upgrade(move |socket| handle_socket(socket, addr, state, group_session)))
 }
 pub async fn handle_socket(
   socket: WebSocket,
   addr: SocketAddr,
   app_state: Arc<AppState>,
-  group_id: i32,
+  group_session: GroupSession,
 ) {
+  let GroupSession { group_id, .. } = group_session;
   let (mut socket_sender, mut socket_receiver) = socket.split();
 
   let mut shared_group_tx = {
@@ -69,19 +80,32 @@ pub async fn handle_socket(
   };
   let mut shared_group_rx = shared_group_tx.subscribe();
 
-  // propagate message events to client
+  // Propagate message events to all subscribe clients
   tokio::spawn(async move {
     while let Ok(msg) = shared_group_rx.recv().await {
       tracing::debug!("Propagate message from group {group_id} to client");
-      if socket_sender.send(Message::Binary(msg)).await.is_err() {
+      if socket_sender
+        .send(Message::Text(serde_json::to_string(&msg).unwrap()))
+        .await
+        .is_err()
+      {
         break;
       }
     }
   });
-
+  // Received message from client and process message
   let mut _receive_task = tokio::spawn(async move {
     while let Some(Ok(msg)) = socket_receiver.next().await {
-      if process_message(msg, addr, &mut shared_group_tx).is_break() {
+      if process_message(
+        msg,
+        addr,
+        app_state.clone(),
+        group_session,
+        &mut shared_group_tx,
+      )
+      .is_break()
+      {
+        tracing::info!("Stop handling message from {addr}");
         break;
       }
     }
@@ -91,8 +115,11 @@ pub async fn handle_socket(
 fn process_message(
   msg: Message,
   addr: SocketAddr,
-  shared_group_sender: &mut Sender<Vec<u8>>,
+  state: Arc<AppState>,
+  group_session: GroupSession,
+  shared_group_sender: &mut Sender<SMessageType>,
 ) -> ControlFlow<(), ()> {
+  let conn = &mut state.db_pool.get().unwrap();
   match msg {
     Message::Ping(v) => {
       tracing::debug!(">> {addr} send ping message {v:?}")
@@ -108,15 +135,19 @@ fn process_message(
         return ControlFlow::Break(());
       }
       match rs.unwrap() {
-        SMessageType::Send(message_content) => {
-          tracing::debug!(">> SEND message: {message_content:?}");
+        SMessageType::Send(s_new_message) => {
+          tracing::debug!(">> SEND message: {s_new_message:?}");
+          let insert_message =
+            s_new_message.build_new_message(group_session.user_id, group_session.group_id);
+          let insertion_rs = create_new_message(conn, insert_message);
+          if insertion_rs.is_err() {
+            return ControlFlow::Break(());
+          }
+
           if shared_group_sender
-            .send(
-              serde_json::to_string(&message_content)
-                .unwrap()
-                .as_bytes()
-                .to_vec(),
-            )
+            .send(SMessageType::Receive(SMessageContent::from(
+              insertion_rs.unwrap(),
+            )))
             .is_err()
           {
             tracing::error!("Cannot send RECEIVED message to client {addr}");

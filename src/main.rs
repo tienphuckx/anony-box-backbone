@@ -12,12 +12,16 @@ use diesel::{
   PgConnection,
 };
 
+use ::r2d2::PooledConnection;
 use dotenvy::dotenv;
 use futures::lock::Mutex;
-use tokio::{net::TcpListener, signal, sync::broadcast};
+use payloads::socket::message::SMessageType;
+use tokio::{net::TcpListener, signal, sync::broadcast::Sender};
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 use utils::constants::*;
+
+pub(crate) type PoolPGConnectionType = PooledConnection<ConnectionManager<PgConnection>>;
 
 fn config_logging() {
   let directives = format!("{level}", level = LevelFilter::DEBUG);
@@ -28,7 +32,7 @@ fn config_logging() {
 
 pub struct AppState {
   pub db_pool: Pool<ConnectionManager<PgConnection>>,
-  pub group_txs: Arc<Mutex<HashMap<i32, broadcast::Sender<Vec<u8>>>>>,
+  pub group_txs: Arc<Mutex<HashMap<i32, Sender<SMessageType>>>>,
 }
 
 #[tokio::main]
