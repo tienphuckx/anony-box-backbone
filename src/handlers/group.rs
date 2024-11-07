@@ -3,11 +3,12 @@ use diesel::result::Error;
 use axum::{
   body::Body, extract::{Path, Query, State}, http::StatusCode, Json
 };
-use chrono::{Utc};
+use chrono::{NaiveDateTime, Utc};
 use diesel::{
   r2d2::ConnectionManager, result::DatabaseErrorKind, Connection, ExpressionMethods, JoinOnDsl,
   OptionalExtension, PgConnection, QueryDsl, RunQueryDsl, SelectableHelper,
 };
+use diesel::dsl::{sql};
 use r2d2::PooledConnection;
 use tracing::error;
 use crate::{
@@ -392,140 +393,166 @@ pub async fn join_group(
 /// 1. **User Validation**:
 ///    - Checks for an existing `user_id`
 #[utoipa::path(
-  get,
-  path = "/gr/list/{user_id}",
-  params(
+    get,
+    path = "/gr/list/{user_id}",
+    params(
         ("user_id" = i32, Path, description = "ID of the user to get groups for")
-  ),
-  responses(
+    ),
+    responses(
         (status = 200, description = "List of groups the user belongs to", body = GroupListResponse),
         (status = 404, description = "User not found", body = String),
         (status = 500, description = "Database connection error", body = String)
-  )
+    )
 )]
 pub async fn get_list_groups_by_user_id(
-  State(app_state): State<Arc<AppState>>,
-  Path(user_id): Path<i32>,
+    State(app_state): State<Arc<AppState>>,
+    Path(user_id): Path<i32>,
 ) -> Result<(StatusCode, Json<GroupListResponse>), DBError> {
-  tracing::debug!("GET: /gr/list/{}", user_id);
+    tracing::debug!("GET: /gr/list/{}", user_id);
 
-  let conn = &mut app_state.db_pool.get().map_err(|err| {
-    tracing::error!("Failed to get connection from pool: {:?}", err);
-    DBError::ConnectionError(err)
-  })?;
+    let conn = &mut app_state.db_pool.get().map_err(|err| {
+        tracing::error!("Failed to get connection from pool: {:?}", err);
+        DBError::ConnectionError(err)
+    })?;
 
-  // Fetch user info
-  let user = users::table
-      .find(user_id)
-      .first::<models::User>(conn)
-      .map_err(|err| {
-        tracing::error!("Failed to find user with id {}: {:?}", user_id, err);
-        DBError::QueryError(format!("User not found: {:?}", err))
-      })?;
+    // Fetch user info
+    let user = users::table
+        .find(user_id)
+        .first::<models::User>(conn)
+        .map_err(|err| {
+            tracing::error!("Failed to find user with id {}: {:?}", user_id, err);
+            DBError::QueryError(format!("User not found: {:?}", err))
+        })?;
 
-  tracing::info!(
+    tracing::info!(
         "User found: user_id = {}, user_code = {}",
         user.id,
         user.user_code
     );
 
-  // Fetch groups that the user is part of
-  let user_groups = participants::table
-      .inner_join(groups::table.on(groups::id.eq(participants::group_id)))
-      .filter(participants::user_id.eq(user_id))
-      .select((
-        groups::id,
-        groups::name,
-        groups::group_code,
-        groups::expired_at,
-        groups::created_at,
-      ))
-      .load::<(i32, String, String, Option<chrono::NaiveDateTime>, Option<chrono::NaiveDateTime>)>(conn)
-      .map_err(|err| {
-        tracing::error!("Failed to load groups for user_id {}: {:?}", user_id, err);
-        DBError::QueryError(format!("Error loading groups: {:?}", err))
-      })?;
+    // Fetch user groups
+    let group_list = fetch_user_groups(conn, user_id).await?;
 
-  tracing::info!(
-        "Groups found for user_id {}: {}",
-        user_id,
-        user_groups.len()
-    );
+    // Fetch waiting groups
+    let group_waiting_list = fetch_waiting_groups(conn, user_id).await?;
 
-  if user_groups.is_empty() {
-    tracing::warn!("No groups found for user_id {}", user_id);
-  }
+    let response = GroupListResponse {
+        user_id: user.id,
+        user_code: user.user_code,
+        total_gr: group_list.len(),
+        list_gr: group_list,
+        list_waiting_gr: group_waiting_list,
+    };
 
-  // For each group, find the latest message
-    let group_list: Result<Vec<GroupInfo>, DBError> = user_groups
-        .into_iter()
-        .map(|(group_id, group_name, group_code, expired_at, created_at)| {
-            tracing::info!(
-                "Group found: group_id = {}, group_name = {}, group_code = {}, expired_at = {}, created_at = {}",
-                group_id,
-                group_name,
-                group_code,
-                expired_at.map_or("None".to_string(), |dt| dt.to_string()),
-                created_at.map_or("None".to_string(), |dt| dt.to_string())
-            );
+    Ok((StatusCode::OK, Json(response)))
+}
 
-            use diesel::dsl::sql;
-            use diesel::sql_types::{Nullable, Text, Timestamp};
+// Fetch groups that the user is part of
+async fn fetch_user_groups(
+    conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
+    user_id: i32,
+) -> Result<Vec<GroupInfo>, DBError> {
+    let user_groups = participants::table
+        .inner_join(groups::table.on(groups::id.eq(participants::group_id)))
+        .filter(participants::user_id.eq(user_id))
+        .select((
+            groups::id,
+            groups::name,
+            groups::group_code,
+            groups::expired_at,
+            groups::created_at,
+        ))
+        .load::<(i32, String, String, Option<NaiveDateTime>, Option<NaiveDateTime>)>(conn)
+        .map_err(|err| {
+            tracing::error!("Failed to load groups for user_id {}: {:?}", user_id, err);
+            DBError::QueryError(format!("Error loading groups: {:?}", err))
+        })?;
 
-            let latest_message = messages_text::table
-                .inner_join(users::table.on(messages_text::user_id.eq(users::id)))
-                .filter(messages_text::group_id.eq(group_id))
-                .order(messages_text::created_at.desc())
-                .select((
-                    sql::<Nullable<Text>>("messages_text.content"),
-                    sql::<Timestamp>("messages_text.created_at"),
-                    sql::<Nullable<Text>>("users.username"),
-                ))
-                .first::<(Option<String>, chrono::NaiveDateTime, Option<String>)>(conn)
-                .optional()
-                .map_err(|err| {
-                    tracing::error!(
-            "Failed to get latest message for group_id {}: {:?}", group_id, err
+    Ok(process_group_list(conn, user_groups).await?)
+}
+
+// Fetch groups where the user is waiting for approval
+async fn fetch_waiting_groups(
+    conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
+    user_id: i32,
+) -> Result<Vec<GroupInfo>, DBError> {
+    let waiting_groups = waiting_list::table
+        .inner_join(groups::table.on(groups::id.eq(waiting_list::group_id)))
+        .filter(waiting_list::user_id.eq(user_id))
+        .select((
+            groups::id,
+            groups::name,
+            groups::group_code,
+            groups::expired_at,
+            groups::created_at,
+        ))
+        .load::<(i32, String, String, Option<NaiveDateTime>, Option<NaiveDateTime>)>(conn)
+        .map_err(|err| {
+            tracing::error!("Failed to load waiting groups for user_id {}: {:?}", user_id, err);
+            DBError::QueryError(format!("Error loading waiting groups: {:?}", err))
+        })?;
+
+    Ok(process_group_list(conn, waiting_groups).await?)
+}
+
+// Process a list of groups and retrieve the latest message for each
+async fn process_group_list(
+    conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
+    groups: Vec<(i32, String, String, Option<NaiveDateTime>, Option<NaiveDateTime>)>,
+) -> Result<Vec<GroupInfo>, DBError> {
+    let mut group_list = Vec::new();
+
+    for (group_id, group_name, group_code, expired_at, created_at) in groups {
+        tracing::info!(
+            "Processing group: id = {}, name = {}, code = {}",
+            group_id, group_name, group_code
         );
-                    DBError::QueryError(format!("Error loading latest message: {:?}", err))
-                })?;
 
-            let (latest_ms_content, latest_ms_time, latest_ms_username) = latest_message
-                .map(|(content, time, username)| (
+        use diesel::sql_types::{Nullable, Text, Timestamp};
+
+        let latest_message = messages_text::table
+            .inner_join(users::table.on(messages_text::user_id.eq(users::id)))
+            .filter(messages_text::group_id.eq(group_id))
+            .order(messages_text::created_at.desc())
+            .select((
+                sql::<Nullable<Text>>("messages_text.content"),
+                sql::<Timestamp>("messages_text.created_at"),
+                sql::<Nullable<Text>>("users.username"),
+            ))
+            .first::<(Option<String>, NaiveDateTime, Option<String>)>(conn)
+            .optional()
+            .map_err(|err| {
+                tracing::error!("Failed to get latest message for group_id {}: {:?}", group_id, err);
+                DBError::QueryError(format!("Error loading latest message: {:?}", err))
+            })?;
+
+        let (latest_ms_content, latest_ms_time, latest_ms_username) = latest_message
+            .map(|(content, time, username)| {
+                (
                     content.unwrap_or_default(),
                     time,
                     username.unwrap_or_default(),
-                ))
-                .unwrap_or_default();
+                )
+            })
+            .unwrap_or_default();
 
-        Ok(GroupInfo {
-          group_id,
-          group_name,
-          group_code,
-          expired_at: expired_at.unwrap_or_default().to_string(),
-          latest_ms_content,
-          latest_ms_time: latest_ms_time.to_string(),
-          latest_ms_username,
-          created_at: created_at.unwrap_or_default().to_string(),
-        })
-      })
-      .collect();
+        group_list.push(GroupInfo {
+            group_id,
+            group_name,
+            group_code,
+            expired_at: expired_at.unwrap_or_default().to_string(),
+            latest_ms_content,
+            latest_ms_time: latest_ms_time.to_string(),
+            latest_ms_username,
+            created_at: created_at.unwrap_or_default().to_string(),
+        });
+    }
 
-  let mut group_list = group_list?;
-  // Sort the list by `created_at` in descending order
-  group_list.sort_by(|a, b| b.created_at.cmp(&a.created_at));
-
-  tracing::info!("Total groups for user_id {}: {}", user_id, group_list.len());
-
-  let response = GroupListResponse {
-    user_id: user.id,
-    user_code: user.user_code,
-    total_gr: group_list.len(),
-    list_gr: group_list,
-  };
-
-  Ok((StatusCode::OK, Json(response)))
+    // Sort groups by creation date (descending)
+    group_list.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+    Ok(group_list)
 }
+
 
 
 /**

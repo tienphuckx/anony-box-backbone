@@ -57,6 +57,7 @@ pub struct GroupListResponse {
   pub user_code: String,
   pub total_gr: usize,
   pub list_gr: Vec<GroupInfo>,
+  pub list_waiting_gr: Vec<GroupInfo>,
 }
 
 /**
