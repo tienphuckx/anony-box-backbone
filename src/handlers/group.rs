@@ -324,7 +324,11 @@ pub async fn join_group(
       let group = group.unwrap();
 
       // checking user already joined the group
-      if check_user_join_group(conn, user.id, group.id)? {
+      let check_result = check_user_join_group(conn, user.id, group.id);
+      if let Err(err) =  check_result{
+        return Ok(Err(ApiError::DatabaseError(err)));
+      }
+      if let Ok(true) = check_result{
         return Ok(Err(ApiError::AlreadyJoined));
       }
       // check group approval_require property to consider add directly to group or waiting list

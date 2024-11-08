@@ -1,4 +1,4 @@
-use std::{env, sync::Arc};
+use std::{collections::HashMap, env, net::SocketAddr, sync::Arc};
 mod database;
 mod errors;
 mod extractors;
@@ -7,17 +7,21 @@ mod payloads;
 mod router;
 mod services;
 mod utils;
-
 use diesel::{
   r2d2::{self, ConnectionManager, Pool},
   PgConnection,
 };
 
+use ::r2d2::PooledConnection;
 use dotenvy::dotenv;
-use tokio::{net::TcpListener, signal};
+use futures::lock::Mutex;
+use payloads::socket::message::SMessageType;
+use tokio::{net::TcpListener, signal, sync::broadcast::Sender};
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 use utils::constants::*;
+
+pub(crate) type PoolPGConnectionType = PooledConnection<ConnectionManager<PgConnection>>;
 
 fn config_logging() {
   let directives = format!("{level}", level = LevelFilter::DEBUG);
@@ -28,6 +32,7 @@ fn config_logging() {
 
 pub struct AppState {
   pub db_pool: Pool<ConnectionManager<PgConnection>>,
+  pub group_txs: Arc<Mutex<HashMap<i32, Sender<SMessageType>>>>,
 }
 
 #[tokio::main]
@@ -54,7 +59,10 @@ async fn main() {
     .build(manager)
     .expect("Failed to create connection pool");
 
-  let app_state = Arc::new(AppState { db_pool });
+  let app_state = Arc::new(AppState {
+    db_pool,
+    group_txs: Arc::new(Mutex::new(HashMap::new())),
+  });
 
   let app = router::init_router().with_state(app_state);
 
@@ -63,10 +71,13 @@ async fn main() {
     .expect("Cannot listen on address");
   tracing::info!("Server is listening on {}:{}", server_address, server_port);
   // println!("Server is listening on port {}", server_port);
-  axum::serve(listener, app)
-    .with_graceful_shutdown(shutdown_signal())
-    .await
-    .unwrap();
+  axum::serve(
+    listener,
+    app.into_make_service_with_connect_info::<SocketAddr>(),
+  )
+  .with_graceful_shutdown(shutdown_signal())
+  .await
+  .unwrap();
   tracing::info!("Server is shutdown");
 }
 

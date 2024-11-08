@@ -4,16 +4,19 @@ use diesel::{
 };
 use r2d2::PooledConnection;
 
-use crate::database::{
-  models::WaitingList,
-  schema::{participants, waiting_list},
+use crate::{
+  database::{
+    models::WaitingList,
+    schema::{participants, waiting_list},
+  },
+  errors::DBError,
 };
 
 pub fn check_user_join_group(
   conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
   user_id: i32,
   group_id: i32,
-) -> Result<bool, diesel::result::Error> {
+) -> Result<bool, DBError> {
   use crate::database::schema::participants;
   let count = participants::table
     .filter(
@@ -22,7 +25,11 @@ pub fn check_user_join_group(
         .and(participants::group_id.eq(group_id)),
     )
     .count()
-    .get_result::<i64>(conn)?;
+    .get_result::<i64>(conn)
+    .map_err(|err| {
+      tracing::error!("database err: {}", err.to_string());
+      DBError::QueryError("Failed to check user joining group".into())
+    })?;
   return if count > 0 { Ok(true) } else { Ok(false) };
 }
 

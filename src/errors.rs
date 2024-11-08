@@ -15,7 +15,6 @@ pub enum DBError {
 
   #[error("TransactionError: {0}")]
   TransactionError(String),
-
 }
 
 impl IntoResponse for DBError {
@@ -44,7 +43,6 @@ impl From<diesel::result::Error> for DBError {
     }
   }
 }
-
 
 #[allow(dead_code)]
 #[derive(Error, Debug)]

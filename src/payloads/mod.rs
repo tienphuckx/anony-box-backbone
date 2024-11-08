@@ -1,5 +1,5 @@
-pub mod groups;
 pub(crate) mod common;
-pub(crate) mod user;
+pub mod groups;
 pub(crate) mod messages;
-
+pub(crate) mod socket;
+pub(crate) mod user;
