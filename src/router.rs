@@ -84,6 +84,7 @@ pub fn init_router() -> Router<Arc<AppState>> {
 
     .route("/", get(handlers::common::home))
     .route("/del-gr", post(handlers::group::del_gr_req))
+    .route("/rm-rf-group", post(handlers::group::rm_rf_group))
     .route("/rm-u-from-gr", post(handlers::group::rm_user_from_gr))
     .route("/leave-gr", post(handlers::group::user_leave_gr))
     .route("/add-user-group",post(handlers::group::create_user_and_group))

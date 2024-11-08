@@ -175,3 +175,13 @@ pub struct RmUserResponse {
   pub res_code: i32,
   pub res_msg: String,
 }
+
+#[derive(Serialize, Deserialize, ToSchema)]
+pub struct RmRfGroupsRequest {
+  pub cmd: String,
+}
+
+#[derive(Serialize, Deserialize, ToSchema)]
+pub struct RmRfGroupsResponse {
+  pub msg: String,
+}

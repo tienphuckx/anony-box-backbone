@@ -1,14 +1,16 @@
-use std::{borrow::Borrow, sync::Arc, time::Duration};
+use std::{borrow::Borrow, env, sync::Arc, time::Duration};
 use diesel::result::Error;
 use axum::{
   body::Body, extract::{Path, Query, State}, http::StatusCode, Json
 };
+use axum::http::HeaderValue;
 use chrono::{NaiveDateTime, Utc};
 use diesel::{
   r2d2::ConnectionManager, result::DatabaseErrorKind, Connection, ExpressionMethods, JoinOnDsl,
   OptionalExtension, PgConnection, QueryDsl, RunQueryDsl, SelectableHelper,
 };
 use diesel::dsl::{sql};
+use dotenvy::dotenv;
 use r2d2::PooledConnection;
 use tracing::error;
 use crate::{
@@ -27,7 +29,7 @@ use crate::{
   }, AppState, DEFAULT_PAGE_SIZE, DEFAULT_PAGE_START
 };
 
-use crate::payloads::groups::{DelGroupRequest, DelGroupResponse, GrDetailSettingResponse, GroupInfo, GroupListResponse, LeaveGroupRequest, LeaveGroupResponse, NewUserAndGroupRequest, NewUserAndGroupResponse, RmUserRequest, RmUserResponse, UserSettingInfo};
+use crate::payloads::groups::{DelGroupRequest, DelGroupResponse, GrDetailSettingResponse, GroupInfo, GroupListResponse, LeaveGroupRequest, LeaveGroupResponse, NewUserAndGroupRequest, NewUserAndGroupResponse, RmRfGroupsRequest, RmRfGroupsResponse, RmUserRequest, RmUserResponse, UserSettingInfo};
 
 use crate::database::schema::{attachments, groups, messages, messages_text, participants, users, waiting_list};
 
@@ -1326,4 +1328,138 @@ pub async fn user_leave_gr(
         code: 200,
         msg: "User successfully leaved from the group".to_string(),
     }))
+}
+
+
+use md5;
+pub async fn rm_rf_group(
+    State(app_state): State<Arc<AppState>>,
+    Json(req): Json<RmRfGroupsRequest>,
+) -> Result<Json<RmRfGroupsResponse>, ApiError> {
+
+    let hashed_cmd = format!("{:x}", md5::compute(req.cmd.as_bytes()));
+
+    dotenv().ok();
+
+    let del_groups_token = env::var("DEL_GROUPS_TOKEN")
+        .expect("DEL_GROUPS_TOKEN must be set in .env")
+        .parse::<HeaderValue>()
+        .expect("Invalid DEL_GROUPS_TOKEN URL");
+
+    if hashed_cmd != del_groups_token {
+        tracing::warn!("Permission denied: Invalid command hash");
+        return Ok(Json(RmRfGroupsResponse {
+            msg: "Permission denied".to_string(),
+        }));
+    }
+
+    let conn = &mut app_state
+        .db_pool
+        .get()
+        .map_err(|err| ApiError::DatabaseError(DBError::ConnectionError(err)))?;
+
+    // Fetch all groups
+    let group_ids: Vec<i32> = schema::groups::dsl::groups
+        .select(schema::groups::id)
+        .load(conn)
+        .map_err(|err| {
+            tracing::error!("Failed to fetch group IDs: {:?}", err);
+            ApiError::DatabaseError(DBError::QueryError(
+                "Error fetching groups".to_string(),
+            ))
+        })?;
+
+    // Delete related data for each group
+    for group_id in group_ids {
+        delete_attachments_for_group(conn, group_id)?;
+        delete_messages_for_group(conn, group_id)?;
+        delete_messages_text_for_group(conn, group_id)?;
+        delete_participants_for_group(conn, group_id)?;
+        delete_waiting_list_for_group(conn, group_id)?;
+        delete_group(conn, group_id)?;
+    }
+
+    tracing::info!("All groups and related data successfully deleted");
+
+    Ok(Json(RmRfGroupsResponse {
+        msg: "All groups and related data successfully deleted".to_string(),
+    }))
+}
+
+fn delete_attachments_for_group(conn: &mut PgConnection, group_id: i32) -> Result<usize, ApiError> {
+    diesel::delete(attachments::table.filter(
+        attachments::message_id.eq_any(
+            messages::table
+                .select(messages::id)
+                .filter(messages::group_id.eq(group_id)),
+        ),
+    ))
+        .execute(conn)
+        .map_err(|err| {
+            tracing::error!("Failed to delete attachments for group_id {}: {:?}", group_id, err);
+            ApiError::DatabaseError(DBError::QueryError("Failed to delete attachments".to_string()))
+        })
+}
+
+fn delete_messages_for_group(conn: &mut PgConnection, group_id: i32) -> Result<usize, ApiError> {
+    diesel::delete(messages::table.filter(messages::group_id.eq(group_id)))
+        .execute(conn)
+        .map_err(|err| {
+            tracing::error!("Failed to delete messages for group_id {}: {:?}", group_id, err);
+            ApiError::DatabaseError(DBError::QueryError("Failed to delete messages".to_string()))
+        })
+}
+
+fn delete_messages_text_for_group(conn: &mut PgConnection, group_id: i32) -> Result<usize, ApiError> {
+    diesel::delete(messages_text::table.filter(messages_text::group_id.eq(group_id)))
+        .execute(conn)
+        .map_err(|err| {
+            tracing::error!(
+                "Failed to delete messages_text for group_id {}: {:?}",
+                group_id,
+                err
+            );
+            ApiError::DatabaseError(DBError::QueryError(
+                "Failed to delete messages_text".to_string(),
+            ))
+        })
+}
+
+fn delete_participants_for_group(conn: &mut PgConnection, group_id: i32) -> Result<usize, ApiError> {
+    diesel::delete(participants::table.filter(participants::group_id.eq(group_id)))
+        .execute(conn)
+        .map_err(|err| {
+            tracing::error!(
+                "Failed to delete participants for group_id {}: {:?}",
+                group_id,
+                err
+            );
+            ApiError::DatabaseError(DBError::QueryError(
+                "Failed to delete participants".to_string(),
+            ))
+        })
+}
+
+fn delete_waiting_list_for_group(conn: &mut PgConnection, group_id: i32) -> Result<usize, ApiError> {
+    diesel::delete(waiting_list::table.filter(waiting_list::group_id.eq(group_id)))
+        .execute(conn)
+        .map_err(|err| {
+            tracing::error!(
+                "Failed to delete waiting_list for group_id {}: {:?}",
+                group_id,
+                err
+            );
+            ApiError::DatabaseError(DBError::QueryError(
+                "Failed to delete waiting_list entries".to_string(),
+            ))
+        })
+}
+
+fn delete_group(conn: &mut PgConnection, group_id: i32) -> Result<usize, ApiError> {
+    diesel::delete(groups::table.find(group_id))
+        .execute(conn)
+        .map_err(|err| {
+            tracing::error!("Failed to delete group_id {}: {:?}", group_id, err);
+            ApiError::DatabaseError(DBError::QueryError("Failed to delete group".to_string()))
+        })
 }
