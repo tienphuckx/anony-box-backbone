@@ -45,7 +45,7 @@ pub mod custom_serde {
     serializer.serialize_str(&s)
   }
 
-  pub fn serialize_date_time_utc<S>(
+  pub fn serialize_with_date_time_utc<S>(
     datetime: &DateTime<Utc>,
     serializer: S,
   ) -> Result<S::Ok, S::Error>
@@ -55,7 +55,7 @@ pub mod custom_serde {
     serializer.serialize_str(&datetime.to_rfc3339())
   }
 
-  pub fn deserialize_with_utc<'de, D>(deserializer: D) -> Result<DateTime<Utc>, D::Error>
+  pub fn deserialize_with_date_time_utc<'de, D>(deserializer: D) -> Result<DateTime<Utc>, D::Error>
   where
     D: Deserializer<'de>,
   {

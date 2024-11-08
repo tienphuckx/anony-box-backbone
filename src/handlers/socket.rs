@@ -81,20 +81,25 @@ pub async fn handle_socket(
   let mut shared_group_rx = shared_group_tx.subscribe();
 
   // Propagate message events to all subscribe clients
-  tokio::spawn(async move {
+  let mut propagate_task = tokio::spawn(async move {
     while let Ok(msg) = shared_group_rx.recv().await {
       tracing::debug!("Propagate message from group {group_id} to client");
-      if socket_sender
+      if let Err(err) = socket_sender
         .send(Message::Text(serde_json::to_string(&msg).unwrap()))
         .await
-        .is_err()
       {
+        tracing::info!("Stop handling propagate message to client {addr}");
+        tracing::error!(
+          "Failed to send message to client {}, cause: {}",
+          addr,
+          err.to_string()
+        );
         break;
       }
     }
   });
   // Received message from client and process message
-  let mut _receive_task = tokio::spawn(async move {
+  let mut receive_task = tokio::spawn(async move {
     while let Some(Ok(msg)) = socket_receiver.next().await {
       if process_message(
         msg,
@@ -110,6 +115,15 @@ pub async fn handle_socket(
       }
     }
   });
+  // Abort the other task, if any one of the task exists
+  tokio::select! {
+    _p_t = (&mut propagate_task) =>{
+      receive_task.abort();
+    },
+    _r_t = (&mut receive_task) =>{
+      propagate_task.abort();
+    }
+  }
 }
 
 fn process_message(
@@ -140,6 +154,7 @@ fn process_message(
           let insert_message =
             s_new_message.build_new_message(group_session.user_id, group_session.group_id);
           let insertion_rs = create_new_message(conn, insert_message);
+
           if insertion_rs.is_err() {
             return ControlFlow::Break(());
           }

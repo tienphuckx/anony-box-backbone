@@ -1,5 +1,6 @@
 use std::io::Write;
 
+use super::schema::sql_types::{Attachmenttype, Messagetype};
 use chrono::NaiveDateTime;
 use diesel::{
   deserialize::{self, FromSql, FromSqlRow},
@@ -7,8 +8,7 @@ use diesel::{
   serialize::{self, Output, ToSql},
   AsExpression, Selectable,
 };
-
-use super::schema::sql_types::{Attachmenttype, Messagetype};
+use uuid::Uuid;
 
 #[derive(Selectable, Queryable, Identifiable)]
 #[diesel(table_name = crate::database::schema::users)]
@@ -171,6 +171,7 @@ impl FromSql<Attachmenttype, diesel::pg::Pg> for AttachmentTypeEnum {
 #[diesel(table_name = crate::database::schema::messages)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Message {
+  pub message_uuid: Uuid,
   pub id: i32,
   pub content: Option<String>,
   pub message_type: MessageTypeEnum,
@@ -183,6 +184,7 @@ pub struct Message {
 #[diesel(table_name = crate::database::schema::messages)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct NewMessage<'a> {
+  pub message_uuid: Uuid,
   pub content: Option<&'a str>,
   pub message_type: MessageTypeEnum,
   pub created_at: NaiveDateTime,
