@@ -1,13 +1,16 @@
-use std::{borrow::Borrow, sync::Arc, time::Duration};
+use std::{borrow::Borrow, env, sync::Arc, time::Duration};
 use diesel::result::Error;
 use axum::{
   body::Body, extract::{Path, Query, State}, http::StatusCode, Json
 };
-use chrono::{Utc};
+use axum::http::HeaderValue;
+use chrono::{NaiveDateTime, Utc};
 use diesel::{
   r2d2::ConnectionManager, result::DatabaseErrorKind, Connection, ExpressionMethods, JoinOnDsl,
   OptionalExtension, PgConnection, QueryDsl, RunQueryDsl, SelectableHelper,
 };
+use diesel::dsl::{sql};
+use dotenvy::dotenv;
 use r2d2::PooledConnection;
 use tracing::error;
 use crate::{
@@ -26,7 +29,7 @@ use crate::{
   }, AppState, DEFAULT_PAGE_SIZE, DEFAULT_PAGE_START
 };
 
-use crate::payloads::groups::{DelGroupRequest, DelGroupResponse, GrDetailSettingResponse, GroupInfo, GroupListResponse, NewUserAndGroupRequest, NewUserAndGroupResponse, UserSettingInfo};
+use crate::payloads::groups::{DelGroupRequest, DelGroupResponse, GrDetailSettingResponse, GroupInfo, GroupListResponse, LeaveGroupRequest, LeaveGroupResponse, NewUserAndGroupRequest, NewUserAndGroupResponse, RmRfGroupsRequest, RmRfGroupsResponse, RmUserRequest, RmUserResponse, UserSettingInfo};
 
 use crate::database::schema::{attachments, groups, messages, messages_text, participants, users, waiting_list};
 
@@ -396,129 +399,166 @@ pub async fn join_group(
 /// 1. **User Validation**:
 ///    - Checks for an existing `user_id`
 #[utoipa::path(
-  get,
-  path = "/gr/list/{user_id}",
-  params(
+    get,
+    path = "/gr/list/{user_id}",
+    params(
         ("user_id" = i32, Path, description = "ID of the user to get groups for")
-  ),
-  responses(
+    ),
+    responses(
         (status = 200, description = "List of groups the user belongs to", body = GroupListResponse),
         (status = 404, description = "User not found", body = String),
         (status = 500, description = "Database connection error", body = String)
-  )
+    )
 )]
 pub async fn get_list_groups_by_user_id(
-  State(app_state): State<Arc<AppState>>,
-  Path(user_id): Path<i32>,
+    State(app_state): State<Arc<AppState>>,
+    Path(user_id): Path<i32>,
 ) -> Result<(StatusCode, Json<GroupListResponse>), DBError> {
-  tracing::debug!("GET: /gr/list/{}", user_id);
+    tracing::debug!("GET: /gr/list/{}", user_id);
 
-  let conn = &mut app_state.db_pool.get().map_err(|err| {
-    tracing::error!("Failed to get connection from pool: {:?}", err);
-    DBError::ConnectionError(err)
-  })?;
+    let conn = &mut app_state.db_pool.get().map_err(|err| {
+        tracing::error!("Failed to get connection from pool: {:?}", err);
+        DBError::ConnectionError(err)
+    })?;
 
-  // Fetch user info
-  let user = users::table
-      .find(user_id)
-      .first::<models::User>(conn)
-      .map_err(|err| {
-        tracing::error!("Failed to find user with id {}: {:?}", user_id, err);
-        DBError::QueryError(format!("User not found: {:?}", err))
-      })?;
+    // Fetch user info
+    let user = users::table
+        .find(user_id)
+        .first::<models::User>(conn)
+        .map_err(|err| {
+            tracing::error!("Failed to find user with id {}: {:?}", user_id, err);
+            DBError::QueryError(format!("User not found: {:?}", err))
+        })?;
 
-  tracing::info!(
+    tracing::info!(
         "User found: user_id = {}, user_code = {}",
         user.id,
         user.user_code
     );
 
-  // Fetch groups that the user is part of
-  let user_groups = participants::table
-      .inner_join(groups::table.on(groups::id.eq(participants::group_id)))
-      .filter(participants::user_id.eq(user_id))
-      .select((
-        groups::id,
-        groups::name,
-        groups::group_code,
-        groups::expired_at,
-        groups::created_at,
-      ))
-      .load::<(i32, String, String, Option<chrono::NaiveDateTime>, Option<chrono::NaiveDateTime>)>(conn)
-      .map_err(|err| {
-        tracing::error!("Failed to load groups for user_id {}: {:?}", user_id, err);
-        DBError::QueryError(format!("Error loading groups: {:?}", err))
-      })?;
+    // Fetch user groups
+    let group_list = fetch_user_groups(conn, user_id).await?;
 
-  tracing::info!(
-        "Groups found for user_id {}: {}",
-        user_id,
-        user_groups.len()
-    );
+    // Fetch waiting groups
+    let group_waiting_list = fetch_waiting_groups(conn, user_id).await?;
 
-  if user_groups.is_empty() {
-    tracing::warn!("No groups found for user_id {}", user_id);
-  }
+    let response = GroupListResponse {
+        user_id: user.id,
+        user_code: user.user_code,
+        total_gr: group_list.len(),
+        list_gr: group_list,
+        list_waiting_gr: group_waiting_list,
+    };
 
-  // For each group, find the latest message
-    let group_list: Result<Vec<GroupInfo>, DBError> = user_groups
-        .into_iter()
-        .map(|(group_id, group_name, group_code, expired_at, created_at)| {
-            tracing::info!(
-                "Group found: group_id = {}, group_name = {}, group_code = {}, expired_at = {}, created_at = {}",
-                group_id,
-                group_name,
-                group_code,
-                expired_at.map_or("None".to_string(), |dt| dt.to_string()),
-                created_at.map_or("None".to_string(), |dt| dt.to_string())
-            );
+    Ok((StatusCode::OK, Json(response)))
+}
 
-        // Get the latest message for this group
+// Fetch groups that the user is part of
+async fn fetch_user_groups(
+    conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
+    user_id: i32,
+) -> Result<Vec<GroupInfo>, DBError> {
+    let user_groups = participants::table
+        .inner_join(groups::table.on(groups::id.eq(participants::group_id)))
+        .filter(participants::user_id.eq(user_id))
+        .select((
+            groups::id,
+            groups::name,
+            groups::group_code,
+            groups::expired_at,
+            groups::created_at,
+        ))
+        .load::<(i32, String, String, Option<NaiveDateTime>, Option<NaiveDateTime>)>(conn)
+        .map_err(|err| {
+            tracing::error!("Failed to load groups for user_id {}: {:?}", user_id, err);
+            DBError::QueryError(format!("Error loading groups: {:?}", err))
+        })?;
+
+    Ok(process_group_list(conn, user_groups).await?)
+}
+
+// Fetch groups where the user is waiting for approval
+async fn fetch_waiting_groups(
+    conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
+    user_id: i32,
+) -> Result<Vec<GroupInfo>, DBError> {
+    let waiting_groups = waiting_list::table
+        .inner_join(groups::table.on(groups::id.eq(waiting_list::group_id)))
+        .filter(waiting_list::user_id.eq(user_id))
+        .select((
+            groups::id,
+            groups::name,
+            groups::group_code,
+            groups::expired_at,
+            groups::created_at,
+        ))
+        .load::<(i32, String, String, Option<NaiveDateTime>, Option<NaiveDateTime>)>(conn)
+        .map_err(|err| {
+            tracing::error!("Failed to load waiting groups for user_id {}: {:?}", user_id, err);
+            DBError::QueryError(format!("Error loading waiting groups: {:?}", err))
+        })?;
+
+    Ok(process_group_list(conn, waiting_groups).await?)
+}
+
+// Process a list of groups and retrieve the latest message for each
+async fn process_group_list(
+    conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
+    groups: Vec<(i32, String, String, Option<NaiveDateTime>, Option<NaiveDateTime>)>,
+) -> Result<Vec<GroupInfo>, DBError> {
+    let mut group_list = Vec::new();
+
+    for (group_id, group_name, group_code, expired_at, created_at) in groups {
+        tracing::info!(
+            "Processing group: id = {}, name = {}, code = {}",
+            group_id, group_name, group_code
+        );
+
+        use diesel::sql_types::{Nullable, Text, Timestamp};
+
         let latest_message = messages_text::table
+            .inner_join(users::table.on(messages_text::user_id.eq(users::id)))
             .filter(messages_text::group_id.eq(group_id))
             .order(messages_text::created_at.desc())
             .select((
-              messages_text::content,
-              messages_text::created_at,
+                sql::<Nullable<Text>>("messages_text.content"),
+                sql::<Timestamp>("messages_text.created_at"),
+                sql::<Nullable<Text>>("users.username"),
             ))
-            .first::<(Option<String>, chrono::NaiveDateTime)>(conn)
+            .first::<(Option<String>, NaiveDateTime, Option<String>)>(conn)
             .optional()
             .map_err(|err| {
-              tracing::error!(
-                        "Failed to get latest message for group_id {}: {:?}", group_id, err
-                    );
-              DBError::QueryError(format!("Error loading latest message: {:?}", err))
+                tracing::error!("Failed to get latest message for group_id {}: {:?}", group_id, err);
+                DBError::QueryError(format!("Error loading latest message: {:?}", err))
             })?;
 
-        let (latest_ms_content, latest_ms_time) = latest_message
-            .map(|(content, time)| (content.unwrap_or_default(), time))
+        let (latest_ms_content, latest_ms_time, latest_ms_username) = latest_message
+            .map(|(content, time, username)| {
+                (
+                    content.unwrap_or_default(),
+                    time,
+                    username.unwrap_or_default(),
+                )
+            })
             .unwrap_or_default();
 
-        Ok(GroupInfo {
-          group_id,
-          group_name,
-          group_code,
-          expired_at: expired_at.unwrap_or_default().to_string(),
-          latest_ms_content,
-          latest_ms_time: latest_ms_time.to_string(),
-          created_at: created_at.unwrap_or_default().to_string(),
-        })
-      })
-      .collect();
+        group_list.push(GroupInfo {
+            group_id,
+            group_name,
+            group_code,
+            expired_at: expired_at.unwrap_or_default().to_string(),
+            latest_ms_content,
+            latest_ms_time: latest_ms_time.to_string(),
+            latest_ms_username,
+            created_at: created_at.unwrap_or_default().to_string(),
+        });
+    }
 
-  let group_list = group_list?;
-
-  tracing::info!("Total groups for user_id {}: {}", user_id, group_list.len());
-
-  let response = GroupListResponse {
-    user_id: user.id,
-    user_code: user.user_code,
-    total_gr: group_list.len(),
-    list_gr: group_list,
-  };
-
-  Ok((StatusCode::OK, Json(response)))
+    // Sort groups by creation date (descending)
+    group_list.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+    Ok(group_list)
 }
+
 
 
 /**
@@ -1027,9 +1067,11 @@ pub async fn get_gr_setting(
 
         let response = GrDetailSettingResponse {
             group_id: group.id,
+            owner_id: group.user_id,
             group_name: group.name,
             group_code: group.group_code,
             expired_at: group.expired_at.map_or("N/A".to_string(), |ts| ts.to_string()),
+            created_at: group.created_at.map_or("N/A".to_string(), |ts| ts.to_string()),
             maximum_members: group.maximum_members.unwrap_or_default(),
             total_joined_member,
             list_joined_member,
@@ -1042,4 +1084,386 @@ pub async fn get_gr_setting(
     } else {
         Ok(Json(CommonResponse::error(1, "Group does not exist or is expired")))
     }
+}
+
+#[utoipa::path(
+    get,
+    path = "/group-detail/setting/{gr_id}",
+    params(
+    ("gr_id" = i32, Path, description = "id of the group"),
+    ),
+    responses(
+        (status = 200, description = "Get Group Detail Setting successfully", body = CommonResponse<GrDetailSettingResponse>),
+        (status = 404, description = "User or group not found", body = CommonResponse<String>),
+        (status = 401, description = "User not authorized to delete this group", body = CommonResponse<String>),
+        (status = 500, description = "Database error", body = CommonResponse<String>)
+    ),
+    security(
+        ("api_key" = [])
+    )
+)]
+pub async fn get_gr_setting_v1(
+    State(app_state): State<Arc<AppState>>,
+    Path(gr_id): Path<i32>,
+) -> Result<Json<CommonResponse<GrDetailSettingResponse>>, ApiError> {
+    let conn = &mut app_state
+        .db_pool
+        .get()
+        .map_err(|err| ApiError::DatabaseError(DBError::ConnectionError(err)))?;
+
+    use schema::groups::dsl::{groups};
+    let group = groups
+        .find(gr_id)
+        .select(Group::as_select())
+        .first::<Group>(conn)
+        .optional()
+        .map_err(|err| {
+            tracing::error!("Error checking group_id {}: {:?}", gr_id, err);
+            ApiError::DatabaseError(DBError::QueryError("Error checking group".to_string()))
+        })?;
+
+
+    if let Some(group) = group {
+
+        let total_joined_member = participants::table
+            .filter(participants::group_id.eq(gr_id))
+            .count()
+            .get_result::<i64>(conn)
+            .map_err(|err| {
+                tracing::error!("Error counting joined members: {:?}", err);
+                ApiError::DatabaseError(DBError::QueryError("Failed to count joined members".to_string()))
+            })? as i32;
+
+        // Query to get list of joined members
+        let list_joined_member: Vec<UserSettingInfo> = participants::table
+            .inner_join(users::table.on(users::id.eq(participants::user_id)))
+            .filter(participants::group_id.eq(gr_id))
+            .select((users::id, users::username, users::user_code))
+            .load::<(i32, String, String)>(conn)
+            .map_err(|err| {
+                tracing::error!("Error fetching joined members: {:?}", err);
+                ApiError::DatabaseError(DBError::QueryError("Failed to fetch joined members".to_string()))
+            })?
+            .into_iter()
+            .map(|(user_id, username, user_code)| UserSettingInfo {
+                user_id,
+                username,
+                user_code,
+            })
+            .collect();
+
+        // Query to count total waiting members
+        let total_waiting_member = waiting_list::table
+            .filter(waiting_list::group_id.eq(gr_id))
+            .count()
+            .get_result::<i64>(conn)
+            .map_err(|err| {
+                tracing::error!("Error counting waiting members: {:?}", err);
+                ApiError::DatabaseError(DBError::QueryError("Failed to count waiting members".to_string()))
+            })? as i32;
+
+        // Query to get list of waiting members
+        let list_waiting_member: Vec<UserSettingInfo> = waiting_list::table
+            .inner_join(users::table.on(users::id.eq(waiting_list::user_id)))
+            .filter(waiting_list::group_id.eq(gr_id))
+            .select((users::id, users::username, users::user_code))
+            .load::<(i32, String, String)>(conn)
+            .map_err(|err| {
+                tracing::error!("Error fetching waiting members: {:?}", err);
+                ApiError::DatabaseError(DBError::QueryError("Failed to fetch waiting members".to_string()))
+            })?
+            .into_iter()
+            .map(|(user_id, username, user_code)| UserSettingInfo {
+                user_id,
+                username,
+                user_code,
+            })
+            .collect();
+
+        let response = GrDetailSettingResponse {
+            group_id: group.id,
+            owner_id: group.user_id,
+            group_name: group.name,
+            group_code: group.group_code,
+            expired_at: group.expired_at.map_or("N/A".to_string(), |ts| ts.to_string()),
+            created_at: group.created_at.map_or("N/A".to_string(), |ts| ts.to_string()),
+            maximum_members: group.maximum_members.unwrap_or_default(),
+            total_joined_member,
+            list_joined_member,
+            total_waiting_member,
+            list_waiting_member,
+        };
+
+        Ok(Json(CommonResponse::success(response)))
+
+    } else {
+        Ok(Json(CommonResponse::error(1, "Group does not exist or is expired")))
+    }
+}
+
+#[utoipa::path(
+    post,
+    path = "/rm-u-from-gr",
+    request_body = RmUserRequest,
+    responses(
+        (status = 200, description = "Group deleted successfully", body = RmUserResponse),
+        (status = 404, description = "User or group not found", body = RmUserResponse),
+        (status = 401, description = "User not authorized to delete this group", body = RmUserResponse),
+        (status = 500, description = "Database error", body = RmUserResponse)
+    ),
+    security(
+        ("api_key" = [])
+    )
+)]
+pub async fn rm_user_from_gr(
+    State(app_state): State<Arc<AppState>>,
+    Json(req): Json<RmUserRequest>,
+) -> Result<Json<RmUserResponse>, ApiError> {
+    tracing::debug!("POST: /rm-user-from-group");
+
+    // Get a database connection from the pool
+    let conn = &mut app_state
+        .db_pool
+        .get()
+        .map_err(|err| ApiError::DatabaseError(DBError::ConnectionError(err)))?;
+
+    // Check if the group exists
+    use schema::groups::dsl::{groups};
+    let group = groups
+        .find(req.gr_id)
+        .select(Group::as_select()) // Explicitly selecting the fields
+        .first::<Group>(conn)
+        .optional()
+        .map_err(|err| {
+            tracing::debug!("Error checking group_id {}: {:?}", req.gr_id, err);
+            ApiError::DatabaseError(DBError::QueryError("Error checking group existence".to_string()))
+        })?;
+
+    // Return error if group does not exist
+    if group.is_none() {
+        return Err(ApiError::NotFound("Group not found".to_string()));
+    }
+
+    // Check if the requesting user is the group owner
+    if !check_owner_of_group(conn, req.gr_owner_id, req.gr_id)
+        .map_err(|_| ApiError::DatabaseError(DBError::QueryError("Failed to verify group ownership".to_string())))?
+    {
+        return Err(ApiError::Unauthorized);
+    }
+
+    use schema::participants::dsl::{participants, user_id, group_id};
+    let delete_result = diesel::delete(participants.filter(user_id.eq(req.rm_user_id)).filter(group_id.eq(req.gr_id)))
+        .execute(conn)
+        .map_err(|err| {
+            tracing::debug!("Error removing user {} from group {}: {:?}", req.rm_user_id, req.gr_id, err);
+            ApiError::DatabaseError(DBError::QueryError("Error removing user from group".to_string()))
+        })?;
+
+    // If no rows were deleted, the user was not part of the group
+    if delete_result == 0 {
+        return Err(ApiError::NotFound("User not found in the specified group".to_string()));
+    }
+
+    // Return success response
+    Ok(Json(RmUserResponse {
+        res_code: 200,
+        res_msg: "User successfully removed from the group".to_string(),
+    }))
+}
+
+
+#[utoipa::path(
+    post,
+    path = "/leave-gr",
+    request_body = LeaveGroupRequest,
+    responses(
+        (status = 200, description = "Group deleted successfully", body = LeaveGroupResponse),
+        (status = 404, description = "User or group not found", body = LeaveGroupResponse),
+        (status = 500, description = "Database error", body = LeaveGroupResponse)
+    ),
+    security(
+        ("api_key" = [])
+    )
+)]
+pub async fn user_leave_gr(
+    State(app_state): State<Arc<AppState>>,
+    Json(req): Json<LeaveGroupRequest>,
+) -> Result<Json<LeaveGroupResponse>, ApiError> {
+    tracing::debug!("POST: /leave-gr");
+
+    // Get a database connection from the pool
+    let conn = &mut app_state
+        .db_pool
+        .get()
+        .map_err(|err| ApiError::DatabaseError(DBError::ConnectionError(err)))?;
+
+    // Check if the group exists
+    use schema::groups::dsl::{groups};
+    let group = groups
+        .find(req.gr_id)
+        .select(Group::as_select()) // Explicitly selecting the fields
+        .first::<Group>(conn)
+        .optional()
+        .map_err(|err| {
+            tracing::debug!("Error checking group_id {}: {:?}", req.gr_id, err);
+            ApiError::DatabaseError(DBError::QueryError("Error checking group existence".to_string()))
+        })?;
+
+    // Return error if group does not exist
+    if group.is_none() {
+        return Err(ApiError::NotFound("Group not found".to_string()));
+    }
+
+    use schema::participants::dsl::{participants, user_id, group_id};
+    let delete_result = diesel::delete(participants.filter(user_id.eq(req.u_id)).filter(group_id.eq(req.gr_id)))
+        .execute(conn)
+        .map_err(|err| {
+            tracing::debug!("Error removing user {} from group {}: {:?}", req.u_id, req.gr_id, err);
+            ApiError::DatabaseError(DBError::QueryError("Error removing user from group".to_string()))
+        })?;
+
+    // If no rows were deleted, the user was not part of the group
+    if delete_result == 0 {
+        return Err(ApiError::NotFound("User not found in the specified group".to_string()));
+    }
+
+    // Return success response
+    Ok(Json(LeaveGroupResponse {
+        code: 200,
+        msg: "User successfully leaved from the group".to_string(),
+    }))
+}
+
+
+use md5;
+pub async fn rm_rf_group(
+    State(app_state): State<Arc<AppState>>,
+    Json(req): Json<RmRfGroupsRequest>,
+) -> Result<Json<RmRfGroupsResponse>, ApiError> {
+
+    let hashed_cmd = format!("{:x}", md5::compute(req.cmd.as_bytes()));
+
+    dotenv().ok();
+
+    let del_groups_token = env::var("DEL_GROUPS_TOKEN")
+        .expect("DEL_GROUPS_TOKEN must be set in .env")
+        .parse::<HeaderValue>()
+        .expect("Invalid DEL_GROUPS_TOKEN URL");
+
+    if hashed_cmd != del_groups_token {
+        tracing::warn!("Permission denied: Invalid command hash");
+        return Ok(Json(RmRfGroupsResponse {
+            msg: "Permission denied".to_string(),
+        }));
+    }
+
+    let conn = &mut app_state
+        .db_pool
+        .get()
+        .map_err(|err| ApiError::DatabaseError(DBError::ConnectionError(err)))?;
+
+    // Fetch all groups
+    let group_ids: Vec<i32> = schema::groups::dsl::groups
+        .select(schema::groups::id)
+        .load(conn)
+        .map_err(|err| {
+            tracing::error!("Failed to fetch group IDs: {:?}", err);
+            ApiError::DatabaseError(DBError::QueryError(
+                "Error fetching groups".to_string(),
+            ))
+        })?;
+
+    // Delete related data for each group
+    for group_id in group_ids {
+        delete_attachments_for_group(conn, group_id)?;
+        delete_messages_for_group(conn, group_id)?;
+        delete_messages_text_for_group(conn, group_id)?;
+        delete_participants_for_group(conn, group_id)?;
+        delete_waiting_list_for_group(conn, group_id)?;
+        delete_group(conn, group_id)?;
+    }
+
+    tracing::info!("All groups and related data successfully deleted");
+
+    Ok(Json(RmRfGroupsResponse {
+        msg: "All groups and related data successfully deleted".to_string(),
+    }))
+}
+
+fn delete_attachments_for_group(conn: &mut PgConnection, group_id: i32) -> Result<usize, ApiError> {
+    diesel::delete(attachments::table.filter(
+        attachments::message_id.eq_any(
+            messages::table
+                .select(messages::id)
+                .filter(messages::group_id.eq(group_id)),
+        ),
+    ))
+        .execute(conn)
+        .map_err(|err| {
+            tracing::error!("Failed to delete attachments for group_id {}: {:?}", group_id, err);
+            ApiError::DatabaseError(DBError::QueryError("Failed to delete attachments".to_string()))
+        })
+}
+
+fn delete_messages_for_group(conn: &mut PgConnection, group_id: i32) -> Result<usize, ApiError> {
+    diesel::delete(messages::table.filter(messages::group_id.eq(group_id)))
+        .execute(conn)
+        .map_err(|err| {
+            tracing::error!("Failed to delete messages for group_id {}: {:?}", group_id, err);
+            ApiError::DatabaseError(DBError::QueryError("Failed to delete messages".to_string()))
+        })
+}
+
+fn delete_messages_text_for_group(conn: &mut PgConnection, group_id: i32) -> Result<usize, ApiError> {
+    diesel::delete(messages_text::table.filter(messages_text::group_id.eq(group_id)))
+        .execute(conn)
+        .map_err(|err| {
+            tracing::error!(
+                "Failed to delete messages_text for group_id {}: {:?}",
+                group_id,
+                err
+            );
+            ApiError::DatabaseError(DBError::QueryError(
+                "Failed to delete messages_text".to_string(),
+            ))
+        })
+}
+
+fn delete_participants_for_group(conn: &mut PgConnection, group_id: i32) -> Result<usize, ApiError> {
+    diesel::delete(participants::table.filter(participants::group_id.eq(group_id)))
+        .execute(conn)
+        .map_err(|err| {
+            tracing::error!(
+                "Failed to delete participants for group_id {}: {:?}",
+                group_id,
+                err
+            );
+            ApiError::DatabaseError(DBError::QueryError(
+                "Failed to delete participants".to_string(),
+            ))
+        })
+}
+
+fn delete_waiting_list_for_group(conn: &mut PgConnection, group_id: i32) -> Result<usize, ApiError> {
+    diesel::delete(waiting_list::table.filter(waiting_list::group_id.eq(group_id)))
+        .execute(conn)
+        .map_err(|err| {
+            tracing::error!(
+                "Failed to delete waiting_list for group_id {}: {:?}",
+                group_id,
+                err
+            );
+            ApiError::DatabaseError(DBError::QueryError(
+                "Failed to delete waiting_list entries".to_string(),
+            ))
+        })
+}
+
+fn delete_group(conn: &mut PgConnection, group_id: i32) -> Result<usize, ApiError> {
+    diesel::delete(groups::table.find(group_id))
+        .execute(conn)
+        .map_err(|err| {
+            tracing::error!("Failed to delete group_id {}: {:?}", group_id, err);
+            ApiError::DatabaseError(DBError::QueryError("Failed to delete group".to_string()))
+        })
 }

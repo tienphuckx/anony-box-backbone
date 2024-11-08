@@ -47,6 +47,7 @@ pub struct GroupInfo {
   pub expired_at: String,
   pub latest_ms_content: String,
   pub latest_ms_time: String,
+  pub latest_ms_username: String,
   pub created_at: String,
 }
 
@@ -56,6 +57,7 @@ pub struct GroupListResponse {
   pub user_code: String,
   pub total_gr: usize,
   pub list_gr: Vec<GroupInfo>,
+  pub list_waiting_gr: Vec<GroupInfo>,
 }
 
 /**
@@ -114,11 +116,10 @@ pub struct LeaveGroupRequest {
   pub gr_id: i32
 }
 
-#[derive(Serialize, ToSchema)]
+#[derive(Serialize,Deserialize, ToSchema)]
 pub struct LeaveGroupResponse {
-  pub gr_id: i32,
-  pub gr_code: String,
-
+  pub code: i32,
+  pub msg: String,
 }
 
 /// Api get group detail setting
@@ -126,9 +127,11 @@ pub struct LeaveGroupResponse {
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct GrDetailSettingResponse {
   pub group_id: i32,
+  pub owner_id: i32,
   pub group_name: String,
   pub group_code: String,
   pub expired_at: String,
+  pub created_at: String,
   pub maximum_members: i32,
   pub total_joined_member: i32,
   pub list_joined_member: Vec<UserSettingInfo>,
@@ -157,4 +160,28 @@ pub struct NewUserAndGroupRequest {
 pub struct NewUserAndGroupResponse {
   pub msg: String,
   pub gr: GroupResult,
+}
+
+/// Api: remove an user from a griup
+#[derive(Serialize, Deserialize, ToSchema)]
+pub struct RmUserRequest {
+  pub gr_owner_id: i32,
+  pub gr_id: i32,
+  pub rm_user_id: i32,
+}
+
+#[derive(Serialize, Deserialize, ToSchema)]
+pub struct RmUserResponse {
+  pub res_code: i32,
+  pub res_msg: String,
+}
+
+#[derive(Serialize, Deserialize, ToSchema)]
+pub struct RmRfGroupsRequest {
+  pub cmd: String,
+}
+
+#[derive(Serialize, Deserialize, ToSchema)]
+pub struct RmRfGroupsResponse {
+  pub msg: String,
 }

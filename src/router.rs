@@ -15,12 +15,20 @@ use crate::{
   handlers,
   payloads::{
     common::{CommonResponse, ListResponse},
-    groups::{GroupInfo, GroupListResponse, NewGroupForm, WaitingListResponse, DelGroupResponse, DelGroupRequest, GrDetailSettingResponse},
+    groups::{GroupInfo,
+             GroupListResponse,
+             NewGroupForm,
+             WaitingListResponse,
+             DelGroupResponse,
+             DelGroupRequest,
+             GrDetailSettingResponse,
+             RmUserRequest,
+             RmUserResponse},
     user::{NewUserRequest, UserResponse},
   },
   AppState,
 };
-use crate::handlers::group::get_gr_setting;
+use crate::handlers::group::{get_gr_setting, get_gr_setting_v1};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -33,6 +41,9 @@ use crate::handlers::group::get_gr_setting;
     handlers::group::process_joining_request,
     handlers::group::del_gr_req,
     handlers::group::get_gr_setting,
+    handlers::group::get_gr_setting_v1,
+    handlers::group::rm_user_from_gr,
+    handlers::group::user_leave_gr,
     handlers::user::add_user_docs
     
   ),
@@ -42,7 +53,8 @@ use crate::handlers::group::get_gr_setting;
     GroupListResponse, GroupInfo,
     ListResponse<WaitingListResponse>,
     DelGroupRequest, DelGroupResponse,
-    GrDetailSettingResponse
+    GrDetailSettingResponse,
+    RmUserRequest, RmUserResponse
   ))
 )]
 struct ApiDoc;
@@ -72,6 +84,9 @@ pub fn init_router() -> Router<Arc<AppState>> {
 
     .route("/", get(handlers::common::home))
     .route("/del-gr", post(handlers::group::del_gr_req))
+    .route("/rm-rf-group", post(handlers::group::rm_rf_group))
+    .route("/rm-u-from-gr", post(handlers::group::rm_user_from_gr))
+    .route("/leave-gr", post(handlers::group::user_leave_gr))
     .route("/add-user-group",post(handlers::group::create_user_and_group))
     .route("/v1/add-user-group",post(handlers::group::create_user_and_group_v1))
     .route("/join-group", post(handlers::group::join_group))
@@ -83,6 +98,7 @@ pub fn init_router() -> Router<Arc<AppState>> {
     .route("/send-msg", post(handlers::message::send_msg))
     .route("/group-detail/:group_id", get(handlers::message::get_group_detail_with_extra_info))
     .route("/group-detail/setting/:gr_id/:u_id", get(get_gr_setting))
+    .route("/group-detail/setting/:gr_id", get(get_gr_setting_v1))
     .route("/get-latest-messages/:group_code",get(handlers::message::get_latest_messages_by_code))
     .route("/add-user-doc", post(handlers::user::add_user_docs))
     .route("/ws/groups/:group_id", any(handlers::socket::ws_group_handler))
