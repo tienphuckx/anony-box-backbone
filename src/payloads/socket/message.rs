@@ -5,12 +5,42 @@ use crate::{
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+
+/// ## Authentication Result structure
+///
+/// ### Properties:
+/// - `status_code`: status code for result
+///   - 0 : Authentication successfully
+///   - 1 : Authentication timeout
+///   - 2 : UnSupport authenticated message type
+///   - 3 : User does not have permission to access this group
+///   - 4 : User token is expired or not found
+///   - 5 : Failed to get user from user code
+///
+/// - `message`: short message for result
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub struct AuthenticateResult {
+  pub status_code: i32,
+  pub message: String,
+}
+impl AuthenticateResult {
+  pub fn new(status_code: i32, message: &str) -> Self {
+    Self {
+      status_code,
+      message: message.into(),
+    }
+  }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub enum SMessageType {
+  Authenticate(String),
+  AuthenticateResponse(AuthenticateResult),
   Send(SNewMessage),
   Receive(SMessageContent),
   Edit(SMessageContent),
   Delete(Vec<i32>),
+  UnSupportMessage(String),
 }
 
 #[derive(Serialize, Clone, Deserialize, Debug, PartialEq)]
