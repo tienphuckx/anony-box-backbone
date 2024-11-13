@@ -6,6 +6,20 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub struct ResultMessage {
+  pub status_code: i32,
+  pub message: String,
+}
+impl ResultMessage {
+  pub fn new(status_code: i32, message: &str) -> Self {
+    Self {
+      status_code,
+      message: message.into(),
+    }
+  }
+}
+
 /// ## Authentication Result structure
 ///
 /// ### Properties:
@@ -18,16 +32,29 @@ use uuid::Uuid;
 ///   - 5 : Failed to get user from user code
 ///
 /// - `message`: short message for result
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-pub struct AuthenticateResult {
-  pub status_code: i32,
-  pub message: String,
+///
+#[allow(unused)]
+pub enum AuthenticationStatusCode {
+  Success,
+  Timeout,
+  UnsupportedMessageType,
+  NoPermission,
+  ExpireOrNotFound,
+  Other,
 }
-impl AuthenticateResult {
-  pub fn new(status_code: i32, message: &str) -> Self {
-    Self {
-      status_code,
-      message: message.into(),
+impl Into<ResultMessage> for AuthenticationStatusCode {
+  fn into(self) -> ResultMessage {
+    match self {
+      Self::Success => ResultMessage::new(0, "Authenticated Successfully"),
+      Self::Timeout => ResultMessage::new(1, "Authentication Timeout"),
+      Self::UnsupportedMessageType => {
+        ResultMessage::new(2, "Only supports authenticated text message type")
+      }
+      Self::NoPermission => {
+        ResultMessage::new(3, "User does not have permission to access this group")
+      }
+      Self::ExpireOrNotFound => ResultMessage::new(4, "User token is expired or not found"),
+      Self::Other => ResultMessage::new(5, "Failed to get user from user code"),
     }
   }
 }
@@ -35,7 +62,9 @@ impl AuthenticateResult {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub enum SMessageType {
   Authenticate(String),
-  AuthenticateResponse(AuthenticateResult),
+  AuthenticateResponse(ResultMessage),
+  SubscribeGroup(i32),
+  SubscribeGroupResponse(ResultMessage),
   Send(SNewMessage),
   Receive(SMessageContent),
   Edit(SMessageContent),
@@ -72,16 +101,17 @@ impl From<Message> for SMessageContent {
 
 #[derive(Serialize, Clone, Deserialize, Debug, PartialEq)]
 pub struct SNewMessage {
-  message_uuid: Uuid,
+  pub message_uuid: Uuid,
+  pub group_id: i32,
   pub content: String,
 }
 
 impl<'a> SNewMessage {
-  pub fn build_new_message(&'a self, user_id: i32, group_id: i32) -> NewMessage<'a> {
+  pub fn build_new_message(&'a self, user_id: i32) -> NewMessage<'a> {
     NewMessage {
       message_uuid: self.message_uuid,
       user_id,
-      group_id,
+      group_id: self.group_id,
       content: Some(&self.content),
       created_at: Utc::now().naive_utc(),
       message_type: crate::database::models::MessageTypeEnum::TEXT,

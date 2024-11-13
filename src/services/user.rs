@@ -1,9 +1,5 @@
 use chrono::Utc;
-use diesel::{
-  r2d2::ConnectionManager, ExpressionMethods, OptionalExtension, PgConnection, QueryDsl,
-  RunQueryDsl, SelectableHelper,
-};
-use r2d2::PooledConnection;
+use diesel::{ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl, SelectableHelper};
 
 use crate::{
   database::{
@@ -11,14 +7,15 @@ use crate::{
     schema::{self},
   },
   utils::crypto::generate_secret_code,
+  PoolPGConnectionType,
 };
 
 pub fn create_user(
-  conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
+  conn: &mut PoolPGConnectionType,
   username: &str,
 ) -> Result<User, diesel::result::Error> {
   let new_user = models::NewUser {
-    username: username,
+    username,
     created_at: Utc::now().naive_local(),
     user_code: &&generate_secret_code(username),
   };
@@ -32,7 +29,7 @@ pub fn create_user(
 
 #[allow(dead_code)]
 pub fn user_exists(
-  conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
+  conn: &mut PoolPGConnectionType,
   secret_code: &str,
 ) -> Result<bool, diesel::result::Error> {
   let count = schema::users::table
@@ -47,7 +44,7 @@ pub fn user_exists(
 }
 
 pub fn get_user_by_code(
-  conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
+  conn: &mut PoolPGConnectionType,
   secret_code: &str,
 ) -> Result<Option<User>, diesel::result::Error> {
   schema::users::table
@@ -55,4 +52,16 @@ pub fn get_user_by_code(
     .select(User::as_select())
     .first(conn)
     .optional()
+}
+
+pub fn get_user_ids_from_group(
+  conn: &mut PoolPGConnectionType,
+  group_id: i32,
+) -> Result<Vec<i32>, diesel::result::Error> {
+  use schema::participants;
+  let user_ids = participants::table
+    .filter(participants::group_id.eq(group_id))
+    .select(participants::user_id)
+    .get_results::<i32>(conn)?;
+  Ok(user_ids)
 }
