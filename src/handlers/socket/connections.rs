@@ -23,24 +23,27 @@ pub fn send_message_event_to_group(
   if user_ids.is_empty() {
     return Ok(0);
   }
-  let active_connections = get_connected_connections(user_ids);
+
   let mut count = 0;
-  for active_connection in active_connections {
-    if active_connection.send(new_message.clone()).is_ok() {
-      count += 1;
+  if let Some(active_connections) = get_connected_connections(user_ids) {
+    for active_connection in active_connections {
+      if active_connection.send(new_message.clone()).is_ok() {
+        count += 1;
+      }
     }
   }
   Ok(count)
 }
 
-fn get_connected_connections(user_ids: Vec<i32>) -> Vec<Sender<SMessageType>> {
-  let mut result = Vec::new();
+fn get_connected_connections(user_ids: Vec<i32>) -> Option<Vec<Sender<SMessageType>>> {
+  // let mut result = Vec::new();
   if let Ok(client_sessions) = CLIENT_SESSIONS.lock() {
-    for user_id in user_ids {
-      if client_sessions.contains_key(&user_id) {
-        result.push(client_sessions.get(&user_id).unwrap().clone());
-      }
-    }
+    let result = client_sessions
+      .iter()
+      .filter(|session| user_ids.contains(&session.0))
+      .map(|session| session.1.clone())
+      .collect::<Vec<Sender<SMessageType>>>();
+    return Some(result);
   }
-  result
+  None
 }

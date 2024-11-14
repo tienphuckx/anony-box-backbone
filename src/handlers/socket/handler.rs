@@ -279,6 +279,19 @@ async fn process_message(
                 tracing::debug!("Send new message to {} clients", send_rs.unwrap());
               }
             } else {
+              tracing::debug!(
+                "Client {} did  not joined group {}",
+                addr,
+                s_new_message.group_id
+              );
+              if current_sender
+                .send(SMessageType::AuthenticateResponse(
+                  AuthenticationStatusCode::NoPermission.into(),
+                ))
+                .is_err()
+              {
+                tracing::error!("Failed to send AuthenticateResponse to client {addr}");
+              }
             }
           } else {
             tracing::debug!(
