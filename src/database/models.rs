@@ -8,6 +8,7 @@ use diesel::{
   serialize::{self, Output, ToSql},
   AsExpression, Selectable,
 };
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 #[derive(Selectable, Queryable, Identifiable)]
@@ -90,7 +91,7 @@ pub struct Participant {
 }
 
 // Custom Message type
-#[derive(Debug, PartialEq, FromSqlRow, AsExpression, Eq)]
+#[derive(Debug, PartialEq, FromSqlRow, AsExpression, Eq, Serialize, Deserialize, Clone)]
 #[diesel(sql_type = crate::database::schema::sql_types::Messagetype)]
 pub enum MessageTypeEnum {
   TEXT,

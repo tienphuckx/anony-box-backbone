@@ -103,11 +103,7 @@ pub async fn handle_socket(socket: WebSocket, addr: SocketAddr, app_state: Arc<A
     tracing::info!("Client {addr} authenticated failed");
     return;
   }
-
-  let mut client_session = ClientSession {
-    user_id: authenticated_rs.unwrap(),
-  };
-
+  let mut client_session = authenticated_rs.unwrap();
   CLIENT_SESSIONS
     .lock()
     .unwrap()
@@ -150,7 +146,7 @@ fn authenticate(
   state: Arc<AppState>,
   current_sender: &mut Sender<SMessageType>,
   addr: &SocketAddr,
-) -> Result<i32, ()> {
+) -> Result<ClientSession, ()> {
   match msg {
     Message::Text(raw_str) => {
       let conn = &mut state.db_pool.get().unwrap();
@@ -205,7 +201,10 @@ fn authenticate(
             tracing::error!("Failed to send authenticate successfully message");
           };
           tracing::debug!("Client {addr} authenticated successfully");
-          return Ok(user.id);
+          return Ok(ClientSession {
+            user_id: user.id,
+            username: user.username,
+          });
         }
 
         _ => {
@@ -267,7 +266,8 @@ async fn process_message(
               if insertion_rs.is_err() {
                 return ControlFlow::Break(());
               }
-              let message_content = SMessageContent::from(insertion_rs.unwrap());
+              let mut message_content = SMessageContent::from(insertion_rs.unwrap());
+              message_content.username = Some(client_session.username.clone());
               let send_rs = connections::send_message_event_to_group(
                 conn,
                 SMessageType::Receive(message_content),

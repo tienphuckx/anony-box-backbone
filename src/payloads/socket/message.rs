@@ -1,7 +1,5 @@
-use crate::{
-  database::models::{Message, NewMessage},
-  utils::minors::custom_serde::*,
-};
+use crate::database::models::{Message, MessageTypeEnum, NewMessage};
+use crate::utils::minors::custom_serde::*;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -72,13 +70,15 @@ pub enum SMessageType {
   UnSupportMessage(String),
 }
 
-#[derive(Serialize, Clone, Deserialize, Debug, PartialEq)]
-
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct SMessageContent {
   pub message_uuid: Uuid,
+  pub message_id: i32,
   pub user_id: i32,
   pub group_id: i32,
   pub content: String,
+  pub username: Option<String>,
+  pub message_type: MessageTypeEnum,
   #[serde(
     serialize_with = "serialize_with_date_time_utc",
     deserialize_with = "deserialize_with_date_time_utc"
@@ -90,8 +90,11 @@ impl From<Message> for SMessageContent {
   fn from(value: Message) -> Self {
     Self {
       message_uuid: value.message_uuid,
+      message_id: value.id,
       user_id: value.user_id,
+      username: None,
       group_id: value.group_id,
+      message_type: value.message_type,
       content: value.content.unwrap_or_default(),
       created_at: value.created_at.and_utc(),
       status: SMessageStatus::Sent,
@@ -103,18 +106,24 @@ impl From<Message> for SMessageContent {
 pub struct SNewMessage {
   pub message_uuid: Uuid,
   pub group_id: i32,
+  pub message_type: Option<MessageTypeEnum>,
   pub content: String,
 }
 
 impl<'a> SNewMessage {
   pub fn build_new_message(&'a self, user_id: i32) -> NewMessage<'a> {
+    let message_type = if self.message_type.is_some() {
+      self.message_type.clone().unwrap()
+    } else {
+      MessageTypeEnum::TEXT
+    };
     NewMessage {
       message_uuid: self.message_uuid,
       user_id,
       group_id: self.group_id,
       content: Some(&self.content),
       created_at: Utc::now().naive_utc(),
-      message_type: crate::database::models::MessageTypeEnum::TEXT,
+      message_type,
     }
   }
 }
