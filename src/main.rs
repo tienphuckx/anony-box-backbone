@@ -1,4 +1,4 @@
-use std::{collections::HashMap, env, net::SocketAddr, sync::Arc};
+use std::{env, net::SocketAddr, sync::Arc};
 mod database;
 mod errors;
 mod extractors;
@@ -14,9 +14,7 @@ use diesel::{
 
 use ::r2d2::PooledConnection;
 use dotenvy::dotenv;
-use futures::lock::Mutex;
-use payloads::socket::message::SMessageType;
-use tokio::{net::TcpListener, signal, sync::broadcast::Sender};
+use tokio::{net::TcpListener, signal};
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 use utils::constants::*;
@@ -32,7 +30,6 @@ fn config_logging() {
 
 pub struct AppState {
   pub db_pool: Pool<ConnectionManager<PgConnection>>,
-  pub group_txs: Arc<Mutex<HashMap<i32, Sender<SMessageType>>>>,
 }
 
 #[tokio::main]
@@ -59,10 +56,7 @@ async fn main() {
     .build(manager)
     .expect("Failed to create connection pool");
 
-  let app_state = Arc::new(AppState {
-    db_pool,
-    group_txs: Arc::new(Mutex::new(HashMap::new())),
-  });
+  let app_state = Arc::new(AppState { db_pool });
 
   let app = router::init_router().with_state(app_state);
 

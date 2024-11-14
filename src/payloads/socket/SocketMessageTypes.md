@@ -45,6 +45,7 @@ Structure of the "Send" message, used by a client to send a message to a group.
 {
   "Send": {
     "message_uuid": "550e8400-e29b-41d4-a716-446655440000",
+    "group_id": 24,
     "content": "Hello, World!"
   }
 }

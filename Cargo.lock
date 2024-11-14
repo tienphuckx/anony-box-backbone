@@ -53,6 +53,7 @@ dependencies = [
  "dotenvy",
  "futures",
  "md5",
+ "once_cell",
  "r2d2",
  "rand",
  "serde",
