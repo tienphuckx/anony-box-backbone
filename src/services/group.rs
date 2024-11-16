@@ -1,19 +1,19 @@
 use diesel::{
-  r2d2::ConnectionManager, BoolExpressionMethods, ExpressionMethods, OptionalExtension,
-  PgConnection, QueryDsl, RunQueryDsl, SelectableHelper,
+  dsl::count, BoolExpressionMethods, ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl,
+  SelectableHelper,
 };
-use r2d2::PooledConnection;
 
 use crate::{
   database::{
-    models::WaitingList,
-    schema::{participants, waiting_list},
+    models::{Group, WaitingList},
+    schema::{groups, participants, waiting_list},
   },
   errors::DBError,
+  PoolPGConnectionType,
 };
 
 pub fn check_user_join_group(
-  conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
+  conn: &mut PoolPGConnectionType,
   user_id: i32,
   group_id: i32,
 ) -> Result<bool, DBError> {
@@ -34,19 +34,27 @@ pub fn check_user_join_group(
 }
 
 pub fn get_count_waiting_list(
-  conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
+  conn: &mut PoolPGConnectionType,
   group_id: i32,
-) -> Result<i64, diesel::result::Error> {
+) -> Result<i64, DBError> {
   use crate::database::schema::waiting_list;
   let count = waiting_list::table
     .filter(waiting_list::group_id.eq(group_id))
     .count()
-    .get_result::<i64>(conn)?;
+    .get_result::<i64>(conn)
+    .map_err(|err| {
+      tracing::error!(
+        "Failed to count waiting members for group_id {}: {:?}",
+        group_id,
+        err
+      );
+      DBError::QueryError(format!("Error counting waiting members: {:?}", err))
+    })?;
   Ok(count as i64)
 }
 
 pub fn check_owner_of_group(
-  conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
+  conn: &mut PoolPGConnectionType,
   user_id: i32,
   group_id: i32,
 ) -> Result<bool, diesel::result::Error> {
@@ -59,7 +67,7 @@ pub fn check_owner_of_group(
 }
 
 pub fn get_waiting_list_object(
-  conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
+  conn: &mut PoolPGConnectionType,
   request_id: i32,
 ) -> Result<Option<WaitingList>, diesel::result::Error> {
   use crate::database::schema::waiting_list;
@@ -71,7 +79,7 @@ pub fn get_waiting_list_object(
 }
 
 pub fn process_joining_request(
-  conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
+  conn: &mut PoolPGConnectionType,
   request: WaitingList,
   is_approved: bool,
 ) -> Result<(), diesel::result::Error> {
@@ -87,4 +95,45 @@ pub fn process_joining_request(
       .execute(conn)?;
   }
   Ok(())
+}
+
+pub fn get_group_info(
+  conn: &mut PoolPGConnectionType,
+  group_id: i32,
+) -> Result<Option<Group>, DBError> {
+  Ok(
+    groups::table
+      .find(group_id)
+      .select(Group::as_select())
+      .first::<Group>(conn)
+      .optional()
+      .map_err(|err| {
+        tracing::error!(
+          "Failed to get_group_info from group_id {}: {:?}",
+          group_id,
+          err
+        );
+        DBError::QueryError(format!("Error counting joined members: {:?}", err))
+      })?,
+  )
+}
+
+pub fn get_count_participants(
+  conn: &mut PoolPGConnectionType,
+  group_id: i32,
+) -> Result<i64, DBError> {
+  Ok(
+    participants::table
+      .filter(participants::group_id.eq(group_id))
+      .select(count(participants::user_id))
+      .first::<i64>(conn)
+      .map_err(|err| {
+        tracing::error!(
+          "Failed to count joined members for group_id {}: {:?}",
+          group_id,
+          err
+        );
+        DBError::QueryError(format!("Error counting joined members: {:?}", err))
+      })?,
+  )
 }

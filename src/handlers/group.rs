@@ -9,7 +9,7 @@ use diesel::{
   r2d2::ConnectionManager, result::DatabaseErrorKind, Connection, ExpressionMethods, JoinOnDsl,
   OptionalExtension, PgConnection, QueryDsl, RunQueryDsl, SelectableHelper,
 };
-use diesel::dsl::{sql};
+use diesel::dsl::sql;
 use dotenvy::dotenv;
 use r2d2::PooledConnection;
 use tracing::error;
@@ -28,14 +28,13 @@ use crate::{
     minors::{calculate_offset_from_page, calculate_total_pages},
   }, AppState, DEFAULT_PAGE_SIZE, DEFAULT_PAGE_START
 };
+use md5;
+use super::common::check_user_exists;
 
 use crate::payloads::groups::{DelGroupRequest, DelGroupResponse, GrDetailSettingResponse, GroupInfo, GroupListResponse, LeaveGroupRequest, LeaveGroupResponse, NewUserAndGroupRequest, NewUserAndGroupResponse, RmRfGroupsRequest, RmRfGroupsResponse, RmUserRequest, RmUserResponse, UserSettingInfo};
-
 use crate::database::schema::{attachments, groups, messages, messages_text, participants, users, waiting_list};
-
 use crate::payloads::common::CommonResponse;
-
-use crate::payloads::groups::{GroupResponse, NewGroupWithUserIdRequest};
+use crate::payloads::groups::{GroupResponse, NewGroupWithUserIdRequest, GroupDetailResponse};
 
 
 /// ### Create new or get existing user from user_code token
@@ -860,7 +859,7 @@ pub async fn del_gr_req(
     }
 
     // Check if the group exists and is not expired
-    use schema::groups::dsl::{groups};
+    use schema::groups::dsl::groups;
     let group = groups
         .find(req.gr_id)
         .select(Group::as_select())
@@ -989,7 +988,7 @@ pub async fn get_gr_setting(
     }
 
     // Check if the group exists and is not expired
-    use schema::groups::dsl::{groups};
+    use schema::groups::dsl::groups;
     let group = groups
         .find(gr_id)
         .select(Group::as_select())
@@ -1086,21 +1085,111 @@ pub async fn get_gr_setting(
     }
 }
 
+
+/// ### Handler for the `/group-detail/:group_id`
+///
+/// Get group message detail by group id.
+/// Query the latest 10 messages for the specified group with a join to include user information
+/// This api select group detail message detail by group id
+/// 1. **List messages**:
+///    - default is 10 message (TODO)
+///
+/// 2. **Each message item**:
+///    - Message content
+///    - username
+///    - time
+///    - reaction data
 #[utoipa::path(
-    get,
-    path = "/group-detail/setting/{gr_id}",
-    params(
-    ("gr_id" = i32, Path, description = "id of the group"),
+  get,
+  path = "/group-detail/{group_id}",
+  params(
+    (
+      "x-user-code" = Option<String>, Header, description = "user code for authentication",
+      example = "6C70F6E0A888C1360AD532C66D8F1CD0ED48C1CC47FA1AE6665B1FC3DAABB468"
     ),
-    responses(
-        (status = 200, description = "Get Group Detail Setting successfully", body = CommonResponse<GrDetailSettingResponse>),
-        (status = 404, description = "User or group not found", body = CommonResponse<String>),
-        (status = 401, description = "User not authorized to delete this group", body = CommonResponse<String>),
-        (status = 500, description = "Database error", body = CommonResponse<String>)
-    ),
-    security(
-        ("api_key" = [])
-    )
+    ("group_id" = i32, Path, description = "group identifier")
+  ),
+  responses(
+      (status = 200, description = "Get group detail successfully", body = GroupDetailResponse, content_type = "application/json"),
+      (status = 401, description = "The current user doesn't have right to access the resource"),
+      (status = 404, description = "User not found"),
+      (status = 500, description = "Database error")
+  ),
+)]
+pub async fn get_group_detail_with_extra_info(
+  State(app_state): State<Arc<AppState>>,
+  UserToken(user_token): UserToken,
+  Path(group_id): Path<i32>,
+) -> Result<Json<GroupDetailResponse>, ApiError> {
+  let conn = &mut app_state.db_pool.get().map_err(|err| {
+    tracing::error!("Failed to get connection from pool: {:?}", err);
+    ApiError::DatabaseError(DBError::ConnectionError(err))
+  })?;
+
+  let user = check_user_exists(conn, user_token).await?;
+
+  if !services::group::check_user_join_group(conn, user.id, group_id)
+    .map_err(|_err| ApiError::new_database_query_err("Failed to check user joined group"))?
+  {
+    return Err(ApiError::Unauthorized);
+  }
+
+  let group_info = services::group::get_group_info(conn, group_id)
+    .map_err(|_| ApiError::new_database_query_err("Failed to get group information"))?;
+  if group_info.is_none() {
+    return Err(ApiError::NotFound("Group".into()));
+  }
+  // Check if group_info is None, return an error if no group is found
+  let Group {
+    name: group_name,
+    user_id,
+    created_at,
+    expired_at,
+    maximum_members: max_member,
+    ..
+  } = group_info.unwrap();
+
+  // Count joined members
+  let joined_member =
+    services::group::get_count_participants(conn, group_id).map_err(ApiError::DatabaseError)?;
+
+  let waiting_member =
+    services::group::get_count_waiting_list(conn, group_id).map_err(ApiError::DatabaseError)?;
+
+  let latest_message = services::message::get_latest_messages_from_group(conn, group_id)
+    .map_err(ApiError::DatabaseError)?;
+
+  // Build response with max_member included
+  let response = GroupDetailResponse {
+    group_name,
+    user_id,
+    max_member: max_member.unwrap_or_default(), // Use default if max_member is None
+    joined_member: joined_member as i32,
+    waiting_member: waiting_member as i32,
+    created_at: created_at.map(|dt| dt.to_string()).unwrap_or_default(),
+    expired_at: expired_at.map(|dt| dt.to_string()).unwrap_or_default(),
+    messages: latest_message,
+  };
+
+  Ok(Json(response))
+}
+
+
+#[utoipa::path(
+  get,
+  path = "/group-detail/setting/{gr_id}",
+  params(
+  ("gr_id" = i32, Path, description = "id of the group"),
+  ),
+  responses(
+      (status = 200, description = "Get Group Detail Setting successfully", body = CommonResponse<GrDetailSettingResponse>),
+      (status = 404, description = "User or group not found", body = CommonResponse<String>),
+      (status = 401, description = "User not authorized to delete this group", body = CommonResponse<String>),
+      (status = 500, description = "Database error", body = CommonResponse<String>)
+  ),
+  security(
+      ("api_key" = [])
+  )
 )]
 pub async fn get_gr_setting_v1(
     State(app_state): State<Arc<AppState>>,
@@ -1111,7 +1200,7 @@ pub async fn get_gr_setting_v1(
         .get()
         .map_err(|err| ApiError::DatabaseError(DBError::ConnectionError(err)))?;
 
-    use schema::groups::dsl::{groups};
+    use schema::groups::dsl::groups;
     let group = groups
         .find(gr_id)
         .select(Group::as_select())
@@ -1298,7 +1387,7 @@ pub async fn user_leave_gr(
         .map_err(|err| ApiError::DatabaseError(DBError::ConnectionError(err)))?;
 
     // Check if the group exists
-    use schema::groups::dsl::{groups};
+    use schema::groups::dsl::groups;
     let group = groups
         .find(req.gr_id)
         .select(Group::as_select()) // Explicitly selecting the fields
@@ -1335,7 +1424,7 @@ pub async fn user_leave_gr(
 }
 
 
-use md5;
+
 
 pub async fn rm_rf_group(
     State(app_state): State<Arc<AppState>>,

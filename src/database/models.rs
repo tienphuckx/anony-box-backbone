@@ -9,6 +9,7 @@ use diesel::{
   AsExpression, Selectable,
 };
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 #[derive(Selectable, Queryable, Identifiable)]
@@ -91,13 +92,19 @@ pub struct Participant {
 }
 
 // Custom Message type
-#[derive(Debug, PartialEq, FromSqlRow, AsExpression, Eq, Serialize, Deserialize, Clone)]
+#[derive(
+  Debug, PartialEq, FromSqlRow, AsExpression, Eq, Clone, Serialize, Deserialize, ToSchema,
+)]
 #[diesel(sql_type = crate::database::schema::sql_types::Messagetype)]
 pub enum MessageTypeEnum {
   TEXT,
   ATTACHMENT,
 }
-
+impl Default for MessageTypeEnum {
+  fn default() -> Self {
+    Self::TEXT
+  }
+}
 impl MessageTypeEnum {
   pub fn default() -> Self {
     Self::TEXT
@@ -126,7 +133,7 @@ impl FromSql<Messagetype, diesel::pg::Pg> for MessageTypeEnum {
 }
 
 // Custom AttachmentType type
-#[derive(Debug, PartialEq, FromSqlRow, AsExpression, Eq)]
+#[derive(Debug, PartialEq, FromSqlRow, AsExpression, Eq, Serialize, Deserialize)]
 #[diesel(sql_type = crate::database::schema::sql_types::Attachmenttype)]
 pub enum AttachmentTypeEnum {
   TEXT,
@@ -211,29 +218,4 @@ pub struct NewAttachment<'a> {
   pub url: &'a str,
   pub message_id: i32,
   pub attachment_type: AttachmentTypeEnum,
-}
-
-// Define the MessageText struct for the messages_text table
-#[derive(Queryable, Identifiable, Associations, Debug)]
-#[diesel(belongs_to(User))]
-#[diesel(belongs_to(Group))]
-#[diesel(table_name = crate::database::schema::messages_text)]
-pub struct MessageText {
-  pub id: i32,
-  pub content: Option<String>,
-  pub message_type: String,
-  pub created_at: NaiveDateTime,
-  pub user_id: i32,
-  pub group_id: i32,
-}
-
-// Define NewMessageText struct for inserting new messages into messages_text table
-#[derive(Insertable)]
-#[diesel(table_name = crate::database::schema::messages_text)]
-pub struct NewMessageText<'a> {
-  pub content: Option<&'a str>,
-  pub message_type: &'a str,
-  pub created_at: NaiveDateTime,
-  pub user_id: i32,
-  pub group_id: i32,
 }

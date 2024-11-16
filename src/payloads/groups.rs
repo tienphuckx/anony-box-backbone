@@ -1,3 +1,4 @@
+use crate::payloads::messages::MessageWithUser;
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -94,12 +95,11 @@ pub struct ProcessWaitingRequest {
   pub is_approved: bool,
 }
 
-
 /// for api delete group
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct DelGroupRequest {
   pub u_id: i32,
-  pub gr_id: i32
+  pub gr_id: i32,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -113,10 +113,10 @@ pub struct DelGroupResponse {
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct LeaveGroupRequest {
   pub u_id: i32,
-  pub gr_id: i32
+  pub gr_id: i32,
 }
 
-#[derive(Serialize,Deserialize, ToSchema)]
+#[derive(Serialize, Deserialize, ToSchema)]
 pub struct LeaveGroupResponse {
   pub code: i32,
   pub msg: String,
@@ -160,6 +160,17 @@ pub struct NewUserAndGroupRequest {
 pub struct NewUserAndGroupResponse {
   pub msg: String,
   pub gr: GroupResult,
+}
+#[derive(Serialize, ToSchema)]
+pub struct GroupDetailResponse {
+  pub group_name: String,
+  pub user_id: i32,
+  pub max_member: i32,
+  pub joined_member: i32,
+  pub waiting_member: i32,
+  pub created_at: String,
+  pub expired_at: String,
+  pub messages: Vec<MessageWithUser>,
 }
 
 /// Api: remove an user from a griup
