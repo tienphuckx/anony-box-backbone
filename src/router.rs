@@ -1,7 +1,7 @@
 use std::{env, sync::Arc, time::Duration};
 
 use axum::{
-  routing::{any, get, post},
+  routing::{any, delete, get, post},
   Router,
 };
 use axum::http::{HeaderValue, Method};
@@ -14,17 +14,11 @@ use tower_http::cors::{CorsLayer, Any};
 use crate::{
   handlers,
   payloads::{
-    common::{CommonResponse, ListResponse},
-    groups::{GroupInfo,
-             GroupListResponse,
-             NewGroupForm,
-             WaitingListResponse,
-             DelGroupResponse,
-             DelGroupRequest,
-             GrDetailSettingResponse,
-             RmUserRequest,
-             RmUserResponse},
-    user::{NewUserRequest, UserResponse},
+    common::{OrderBy, CommonResponse, ListResponse},
+    groups::{DelGroupRequest, DelGroupResponse, GrDetailSettingResponse
+      , GroupInfo, GroupListResponse, NewGroupForm, RmUserRequest, RmUserResponse, WaitingListResponse
+    }
+    , messages::{MessageWithUser, SendMessageRequest, SendMessageResponse, MessageResponse}, user::{NewUserRequest, UserResponse}
   },
   AppState,
 };
@@ -44,17 +38,27 @@ use crate::handlers::group::{get_gr_setting, get_gr_setting_v1};
     handlers::group::get_gr_setting_v1,
     handlers::group::rm_user_from_gr,
     handlers::group::user_leave_gr,
+    handlers::group::get_group_detail_with_extra_info, 
+    handlers::message::send_msg,
+    handlers::message::get_messages,
+    handlers::message::patch_message,
+    handlers::message::delete_message,
     handlers::user::add_user_docs
     
   ),
   components(schemas(
+    OrderBy,
     NewGroupForm, NewUserRequest,
     UserResponse, CommonResponse<UserResponse>,
     GroupListResponse, GroupInfo,
     ListResponse<WaitingListResponse>,
     DelGroupRequest, DelGroupResponse,
-    GrDetailSettingResponse,
+    GrDetailSettingResponse, 
+    SendMessageRequest, SendMessageResponse,
+    MessageResponse,
+    ListResponse<MessageWithUser>,
     RmUserRequest, RmUserResponse
+    
   ))
 )]
 struct ApiDoc;
@@ -81,7 +85,6 @@ pub fn init_router() -> Router<Arc<AppState>> {
       .allow_headers(Any);
 
   Router::new()
-
     .route("/", get(handlers::common::home))
     .route("/del-gr", post(handlers::group::del_gr_req))
     .route("/rm-rf-group", post(handlers::group::rm_rf_group))
@@ -95,14 +98,14 @@ pub fn init_router() -> Router<Arc<AppState>> {
     .route("/waiting-list/:request_id", post(handlers::group::process_joining_request))
     .route("/add-user", post(handlers::user::add_user)) //first: create a new user
     .route("/create-group",post(handlers::group::create_group_with_user))
-    .route("/send-msg", post(handlers::message::send_msg))
-    .route("/group-detail/:group_id", get(handlers::message::get_group_detail_with_extra_info))
+    .route("/messages", post(handlers::message::send_msg))
+    .route("/messages/:message_id", delete(handlers::message::delete_message).patch(handlers::message::patch_message))
+    .route("/groups/:group_id/messages", get(handlers::message::get_messages))
+    .route("/group-detail/:group_id", get(handlers::group::get_group_detail_with_extra_info))
     .route("/group-detail/setting/:gr_id/:u_id", get(get_gr_setting))
     .route("/group-detail/setting/:gr_id", get(get_gr_setting_v1))
-    .route("/get-latest-messages/:group_code",get(handlers::message::get_latest_messages_by_code))
     .route("/add-user-doc", post(handlers::user::add_user_docs))
     .route("/ws", any(handlers::socket::handler::ws_handler))
-
     .fallback(handlers::common::fallback)
     .merge(get_swagger_ui())
     .layer(TraceLayer::new_for_http())

@@ -1,4 +1,5 @@
-use crate::DEFAULT_PAGE_SIZE;
+use crate::{utils::minors::calculate_offset_from_page, DEFAULT_PAGE_SIZE, DEFAULT_PAGE_START};
+use axum::{http::StatusCode, response::IntoResponse, Json};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -27,6 +28,12 @@ impl<T> CommonResponse<T> {
   }
 }
 
+#[derive(Deserialize, Debug, ToSchema)]
+pub enum OrderBy {
+  ASC,
+  DESC,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct PageRequest {
   pub page: Option<u16>,
@@ -38,6 +45,24 @@ impl Default for PageRequest {
       page: Some(0),
       limit: Some(DEFAULT_PAGE_SIZE),
     }
+  }
+}
+impl PageRequest {
+  pub fn get_offset_and_limit(&self) -> (u64, i64) {
+    let page = self.get_page();
+    let per_page = self.get_per_page() as i64;
+    let offset = calculate_offset_from_page(page as u64, per_page as u64);
+    (offset, per_page)
+  }
+  pub fn get_page(&self) -> u16 {
+    let mut page = self.page.unwrap_or(DEFAULT_PAGE_START);
+    if page == 0 {
+      page = DEFAULT_PAGE_START;
+    }
+    page
+  }
+  pub fn get_per_page(&self) -> u32 {
+    self.limit.unwrap_or(DEFAULT_PAGE_SIZE) as u32
   }
 }
 
@@ -55,5 +80,13 @@ impl<T> Default for ListResponse<T> {
       total_pages: 0,
       objects: Vec::new(),
     }
+  }
+}
+impl<T> IntoResponse for ListResponse<T>
+where
+  T: Serialize,
+{
+  fn into_response(self) -> axum::response::Response {
+    (StatusCode::OK, Json(self)).into_response()
   }
 }
