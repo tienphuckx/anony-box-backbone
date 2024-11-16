@@ -184,6 +184,7 @@ pub struct Message {
   pub content: Option<String>,
   pub message_type: MessageTypeEnum,
   pub created_at: NaiveDateTime,
+  pub updated_at: Option<NaiveDateTime>,
   pub user_id: i32,
   pub group_id: i32,
 }

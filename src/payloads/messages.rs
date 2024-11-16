@@ -51,6 +51,8 @@ pub struct MessageResponse {
   pub message_type: MessageTypeEnum,
   #[serde(serialize_with = "serialize_naive_datetime")]
   pub created_at: NaiveDateTime,
+  #[serde(serialize_with = "serialize_naive_datetime_option")]
+  pub updated_at: Option<NaiveDateTime>,
   pub user_id: i32,
   pub user_name: String,
 }
@@ -62,6 +64,7 @@ impl From<Message> for MessageResponse {
       content: value.content,
       message_type: value.message_type,
       created_at: value.created_at,
+      updated_at: value.updated_at,
       user_id: value.user_id,
       user_name: "".into(),
     }
@@ -82,6 +85,8 @@ pub struct MessageWithUser {
   pub message_type: MessageTypeEnum,
   #[serde(serialize_with = "serialize_naive_datetime")]
   pub created_at: NaiveDateTime,
+  #[serde(serialize_with = "serialize_naive_datetime_option")]
+  pub updated_at: Option<NaiveDateTime>,
   pub user_id: i32,
   pub user_name: String,
 }

@@ -32,7 +32,7 @@ use md5;
 use super::common::check_user_exists;
 
 use crate::payloads::groups::{DelGroupRequest, DelGroupResponse, GrDetailSettingResponse, GroupInfo, GroupListResponse, LeaveGroupRequest, LeaveGroupResponse, NewUserAndGroupRequest, NewUserAndGroupResponse, RmRfGroupsRequest, RmRfGroupsResponse, RmUserRequest, RmUserResponse, UserSettingInfo};
-use crate::database::schema::{attachments, groups, messages, messages_text, participants, users, waiting_list};
+use crate::database::schema::{attachments, groups, messages, participants, users, waiting_list};
 use crate::payloads::common::CommonResponse;
 use crate::payloads::groups::{GroupResponse, NewGroupWithUserIdRequest, GroupDetailResponse};
 
@@ -515,13 +515,13 @@ async fn process_group_list(
 
         use diesel::sql_types::{Nullable, Text, Timestamp};
 
-        let latest_message = messages_text::table
-            .inner_join(users::table.on(messages_text::user_id.eq(users::id)))
-            .filter(messages_text::group_id.eq(group_id))
-            .order(messages_text::created_at.desc())
+        let latest_message = messages::table
+            .inner_join(users::table.on(messages::user_id.eq(users::id)))
+            .filter(messages::group_id.eq(group_id))
+            .order(messages::created_at.desc())
             .select((
-                sql::<Nullable<Text>>("messages_text.content"),
-                sql::<Timestamp>("messages_text.created_at"),
+                sql::<Nullable<Text>>("messages.content"),
+                sql::<Timestamp>("messages.created_at"),
                 sql::<Nullable<Text>>("users.username"),
             ))
             .first::<(Option<String>, NaiveDateTime, Option<String>)>(conn)
@@ -901,12 +901,12 @@ pub async fn del_gr_req(
                 ApiError::DatabaseError(DBError::QueryError("Failed to delete messages".to_string()))
             })?;
 
-        // Step 3: Delete messages in the messages_text table for this group
-        diesel::delete(messages_text::table.filter(messages_text::group_id.eq(req.gr_id)))
+        // Step 3: Delete messages in the messages table for this group
+        diesel::delete(messages::table.filter(messages::group_id.eq(req.gr_id)))
             .execute(conn)
             .map_err(|err| {
-                tracing::error!("Failed to delete messages_text for group_id {}: {:?}", req.gr_id, err);
-                ApiError::DatabaseError(DBError::QueryError("Failed to delete messages_text".to_string()))
+                tracing::error!("Failed to delete messages for group_id {}: {:?}", req.gr_id, err);
+                ApiError::DatabaseError(DBError::QueryError("Failed to delete messages".to_string()))
             })?;
 
         // Step 4: Delete participants related to this group
@@ -1317,7 +1317,7 @@ pub async fn rm_user_from_gr(
         .map_err(|err| ApiError::DatabaseError(DBError::ConnectionError(err)))?;
 
     // Check if the group exists
-    use schema::groups::dsl::{groups};
+    use schema::groups::dsl::groups;
     let group = groups
         .find(req.gr_id)
         .select(Group::as_select()) // Explicitly selecting the fields
@@ -1467,7 +1467,7 @@ pub async fn rm_rf_group(
     for group_id in group_ids {
         delete_attachments_for_group(conn, group_id)?;
         delete_messages_for_group(conn, group_id)?;
-        delete_messages_text_for_group(conn, group_id)?;
+        delete_messages_for_group(conn, group_id)?;
         delete_participants_for_group(conn, group_id)?;
         delete_waiting_list_for_group(conn, group_id)?;
         delete_group(conn, group_id)?;
@@ -1501,21 +1501,6 @@ fn delete_messages_for_group(conn: &mut PgConnection, group_id: i32) -> Result<u
         .map_err(|err| {
             tracing::error!("Failed to delete messages for group_id {}: {:?}", group_id, err);
             ApiError::DatabaseError(DBError::QueryError("Failed to delete messages".to_string()))
-        })
-}
-
-fn delete_messages_text_for_group(conn: &mut PgConnection, group_id: i32) -> Result<usize, ApiError> {
-    diesel::delete(messages_text::table.filter(messages_text::group_id.eq(group_id)))
-        .execute(conn)
-        .map_err(|err| {
-            tracing::error!(
-                "Failed to delete messages_text for group_id {}: {:?}",
-                group_id,
-                err
-            );
-            ApiError::DatabaseError(DBError::QueryError(
-                "Failed to delete messages_text".to_string(),
-            ))
         })
 }
 

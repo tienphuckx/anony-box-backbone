@@ -1,4 +1,4 @@
-use chrono::{NaiveDateTime, NaiveTime};
+use chrono::{NaiveDateTime, NaiveTime, Utc};
 use diesel::{
   pg::Pg, ExpressionMethods, JoinOnDsl, OptionalExtension, QueryDsl, RunQueryDsl, SelectableHelper,
   TextExpressionMethods,
@@ -7,7 +7,10 @@ use diesel::{
 use crate::{
   database::{
     models::{self, Message, NewMessage},
-    schema::{messages, users},
+    schema::{
+      messages::{self},
+      users,
+    },
   },
   errors::DBError,
   payloads::{
@@ -80,6 +83,7 @@ pub fn get_messages(
       messages::content,
       messages::message_type,
       messages::created_at,
+      messages::updated_at,
       messages::user_id,
       users::username,
     ))
@@ -156,6 +160,7 @@ pub fn get_latest_messages_from_group(
       messages::content,
       messages::message_type,
       messages::created_at,
+      messages::updated_at,
       messages::user_id,
       users::username,
     ))
@@ -219,7 +224,10 @@ pub fn update_message(
   update_data: UpdateMessage,
 ) -> Result<Message, DBError> {
   use crate::database::schema::messages;
-
+  let mut updated_at_datetime = None;
+  if update_data.content.is_some() || update_data.message_type.is_some() {
+    updated_at_datetime = Some(Utc::now().naive_utc());
+  }
   let message = diesel::update(messages::table.find(message_id))
     .set((
       update_data
@@ -228,6 +236,7 @@ pub fn update_message(
       update_data
         .message_type
         .map(|mt| messages::message_type.eq(mt)),
+      updated_at_datetime.map(|datetime| messages::updated_at.eq(datetime)),
     ))
     .returning(Message::as_returning())
     .get_result::<Message>(conn)
