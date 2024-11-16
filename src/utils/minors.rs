@@ -34,6 +34,22 @@ pub mod custom_serde {
   use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
   use serde::{Deserialize, Deserializer, Serializer};
 
+  pub fn serialize_naive_datetime_option<S>(
+    datetime_opt: &Option<NaiveDateTime>,
+    serializer: S,
+  ) -> Result<S::Ok, S::Error>
+  where
+    S: Serializer,
+  {
+    match datetime_opt {
+      Some(date_time) => {
+        let s = date_time.format("%Y-%m-%d %H:%M:%S").to_string();
+        serializer.serialize_str(&s)
+      }
+      None => serializer.serialize_none(),
+    }
+  }
+
   pub fn serialize_naive_datetime<S>(
     datetime: &NaiveDateTime,
     serializer: S,

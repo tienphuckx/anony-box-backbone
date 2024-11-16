@@ -32,9 +32,9 @@ diesel::table! {
         group_code -> Varchar,
         user_id -> Int4,
         approval_require -> Nullable<Bool>,
+        maximum_members -> Nullable<Int4>,
         created_at -> Nullable<Timestamp>,
         expired_at -> Nullable<Timestamp>,
-        maximum_members -> Nullable<Int4>,
     }
 }
 
@@ -51,19 +51,7 @@ diesel::table! {
         user_id -> Int4,
         group_id -> Int4,
         message_uuid -> Uuid,
-    }
-}
-
-diesel::table! {
-    messages_text (id) {
-        id -> Int4,
-        #[max_length = 1000]
-        content -> Nullable<Varchar>,
-        #[max_length = 255]
-        message_type -> Varchar,
-        created_at -> Timestamp,
-        user_id -> Int4,
-        group_id -> Int4,
+        updated_at -> Nullable<Timestamp>,
     }
 }
 
@@ -101,8 +89,6 @@ diesel::joinable!(attachments -> messages (message_id));
 diesel::joinable!(groups -> users (user_id));
 diesel::joinable!(messages -> groups (group_id));
 diesel::joinable!(messages -> users (user_id));
-diesel::joinable!(messages_text -> groups (group_id));
-diesel::joinable!(messages_text -> users (user_id));
 diesel::joinable!(participants -> groups (group_id));
 diesel::joinable!(participants -> users (user_id));
 diesel::joinable!(waiting_list -> groups (group_id));
@@ -112,7 +98,6 @@ diesel::allow_tables_to_appear_in_same_query!(
     attachments,
     groups,
     messages,
-    messages_text,
     participants,
     users,
     waiting_list,
