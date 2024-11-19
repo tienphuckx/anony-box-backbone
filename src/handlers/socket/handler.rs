@@ -1,12 +1,19 @@
 use crate::{
   errors::ApiError,
   handlers::socket::{
-    connections::{self, CLIENT_SESSIONS},
+    connections::{self, send_message_event_to_group, CLIENT_SESSIONS},
     structs::ClientSession,
   },
-  payloads::socket::message::{AuthenticationStatusCode, SMessageContent, SMessageType},
-  services::{group::check_user_join_group, message::create_new_message, user::get_user_by_code},
-  AppState,
+  payloads::socket::{
+    common::ResultMessage,
+    message::{
+      AuthenticationStatusCode, DeleteMessageData, SMessageContent, SMessageEdit, SMessageType,
+    },
+  },
+  services::{
+    self, group::check_user_join_group, message::create_new_message, user::get_user_by_code,
+  },
+  AppState, PoolPGConnectionType,
 };
 use axum::{
   extract::{
@@ -97,7 +104,7 @@ pub async fn handle_socket(socket: WebSocket, addr: SocketAddr, app_state: Arc<A
   }
   let first_message = first_message_rs.unwrap();
 
-  let authenticated_rs = authenticate(first_message, app_state.clone(), &mut current_sender, &addr);
+  let authenticated_rs = authenticate(first_message, app_state.clone(), &mut current_sender, addr);
 
   if authenticated_rs.is_err() {
     tracing::info!("Client {addr} authenticated failed");
@@ -114,7 +121,6 @@ pub async fn handle_socket(socket: WebSocket, addr: SocketAddr, app_state: Arc<A
     while let Some(Ok(msg)) = socket_receiver.next().await {
       if process_message(
         msg,
-        addr,
         app_state.clone(),
         &mut client_session,
         &mut current_sender,
@@ -145,7 +151,7 @@ fn authenticate(
   msg: Message,
   state: Arc<AppState>,
   current_sender: &mut Sender<SMessageType>,
-  addr: &SocketAddr,
+  addr: SocketAddr,
 ) -> Result<ClientSession, ()> {
   match msg {
     Message::Text(raw_str) => {
@@ -204,6 +210,7 @@ fn authenticate(
           return Ok(ClientSession {
             user_id: user.id,
             username: user.username,
+            addr,
           });
         }
 
@@ -225,19 +232,18 @@ fn authenticate(
 
 async fn process_message(
   msg: Message,
-  addr: SocketAddr,
   app_state: Arc<AppState>,
   client_session: &mut ClientSession,
   current_sender: &mut Sender<SMessageType>,
 ) -> ControlFlow<(), ()> {
   let conn = &mut app_state.db_pool.get().unwrap();
-
+  tracing::debug!(">> Client {} SEND message", client_session.addr);
   match msg {
     Message::Ping(v) => {
-      tracing::debug!(">> {addr} send ping message {v:?}")
+      tracing::debug!(">> {} send ping message {v:?}", client_session.addr)
     }
     Message::Pong(v) => {
-      tracing::debug!(">> {addr} send pong message {v:?}")
+      tracing::debug!(">> {} send pong message {v:?}", client_session.addr)
     }
     Message::Text(raw_str) => {
       let rs = serde_json::from_slice::<SMessageType>(raw_str.as_bytes());
@@ -255,85 +261,184 @@ async fn process_message(
       }
       match rs.unwrap() {
         SMessageType::Send(s_new_message) => {
-          tracing::debug!(">> Client {addr} SEND message: {s_new_message:?}");
-          if let Ok(rs) =
-            check_user_join_group(conn, client_session.user_id, s_new_message.group_id)
+          if let Some(value) =
+            process_send_message(conn, client_session, s_new_message, current_sender)
           {
-            if rs {
-              let insert_message = s_new_message.build_new_message(client_session.user_id);
-              let insertion_rs = create_new_message(conn, insert_message);
-
-              if insertion_rs.is_err() {
-                return ControlFlow::Break(());
-              }
-              let mut message_content = SMessageContent::from(insertion_rs.unwrap());
-              message_content.username = Some(client_session.username.clone());
-              let send_rs = connections::send_message_event_to_group(
-                conn,
-                SMessageType::Receive(message_content),
-                s_new_message.group_id,
-              );
-              if send_rs.is_err() {
-                tracing::error!("Failed to send message event to group");
-              } else {
-                tracing::debug!("Send new message to {} clients", send_rs.unwrap());
-              }
-            } else {
-              tracing::debug!(
-                "Client {} did  not joined group {}",
-                addr,
-                s_new_message.group_id
-              );
-              if current_sender
-                .send(SMessageType::AuthenticateResponse(
-                  AuthenticationStatusCode::NoPermission.into(),
-                ))
-                .is_err()
-              {
-                tracing::error!("Failed to send AuthenticateResponse to client {addr}");
-              }
-            }
-          } else {
-            tracing::debug!(
-              "Client {} does not have permission to access group {}",
-              addr,
-              s_new_message.group_id
-            );
-            if current_sender
-              .send(SMessageType::AuthenticateResponse(
-                AuthenticationStatusCode::NoPermission.into(),
-              ))
-              .is_err()
-            {
-              tracing::error!("Failed to send AuthenticateResponse to client");
-            }
+            return value;
           }
         }
-        SMessageType::Receive(_message_content) => {}
-        SMessageType::Delete(_message_ids) => {}
-
+        SMessageType::DeleteMessage(delete_message_data) => {
+          process_delete_message(conn, client_session, current_sender, delete_message_data);
+        }
+        SMessageType::EditMessage(edit_message) => {
+          process_update_message(conn, current_sender, edit_message);
+        }
         _ => {
           tracing::debug!("Cannot handle message type");
         }
       }
-      tracing::debug!(">> {addr} send text message {raw_str:?}");
+      tracing::debug!(">> {} send text message {:?}", client_session.addr, raw_str);
     }
     Message::Binary(data) => {
-      tracing::debug!(">> {addr} send binary message {data:?}")
+      tracing::debug!(">> {} send binary message {:?}", client_session.addr, data)
     }
     Message::Close(frame) => {
       if let Some(cf) = frame {
         tracing::debug!(
           ">>> {} sent close with code {} and reason `{}`",
-          addr,
+          client_session.addr,
           cf.code,
           cf.reason
         );
       } else {
-        tracing::debug!(">>> {addr} somehow sent close message without CloseFrame");
+        tracing::debug!(
+          ">>> {} somehow sent close message without CloseFrame",
+          client_session.addr
+        );
       }
       return ControlFlow::Break(());
     }
   }
   ControlFlow::Continue(())
+}
+
+fn process_update_message(
+  conn: &mut PoolPGConnectionType,
+  current_sender: &mut Sender<SMessageType>,
+  edit_message: SMessageEdit,
+) {
+  let SMessageEdit {
+    message_id,
+    group_id,
+    ..
+  } = edit_message.clone();
+  let message_rs = services::message::update_message(conn, message_id, edit_message.into());
+  if let Err(ref err) = message_rs {
+    let _ = current_sender.send(SMessageType::EditMessageResponse(ResultMessage::new(
+      1,
+      &format!("Failed to update message, {}", err.to_string()),
+    )));
+  } else {
+    let _ = send_message_event_to_group(
+      conn,
+      SMessageType::EditMessageData(SMessageContent::from(message_rs.unwrap())),
+      group_id,
+    );
+  }
+}
+
+fn process_delete_message(
+  conn: &mut PoolPGConnectionType,
+  client_session: &mut ClientSession,
+  current_sender: &mut Sender<SMessageType>,
+  DeleteMessageData {
+    group_id,
+    message_ids,
+  }: DeleteMessageData,
+) {
+  tracing::debug!(">> Client {} DELETE message", client_session.addr);
+  let invalid_message_ids =
+    services::message::check_owner_of_messages(conn, client_session.user_id, &message_ids);
+  if let Err(ref err) = invalid_message_ids {
+    tracing::error!("Error when check owner of messages: {}", err.to_string());
+
+    let _ = current_sender.send(SMessageType::DeleteMessageResponse(ResultMessage::new(
+      1,
+      "There is an error, please try later",
+    )));
+  }
+  let invalid_message_ids = invalid_message_ids.unwrap();
+  if !invalid_message_ids.is_empty() {
+    let _ = current_sender.send(SMessageType::DeleteMessageResponse(ResultMessage::new(
+      2,
+      format!(
+        "Invalid message ids, maybe user are not owner of messages: {:?}",
+        invalid_message_ids
+      )
+      .as_str(),
+    )));
+  } else {
+    if let Ok(true) = services::message::delete_messages(conn, &message_ids) {
+      let _ = send_message_event_to_group(
+        conn,
+        SMessageType::DeleteMessageEvent(DeleteMessageData {
+          group_id,
+          message_ids,
+        }),
+        group_id,
+      );
+    } else {
+      let _ = current_sender.send(SMessageType::DeleteMessageResponse(ResultMessage::new(
+        2,
+        "Failed to delete message, maybe one of messages ids is not found",
+      )));
+    }
+  }
+}
+
+fn process_send_message(
+  conn: &mut PoolPGConnectionType,
+  client_session: &mut ClientSession,
+  s_new_message: crate::payloads::socket::message::SNewMessage,
+  current_sender: &mut Sender<SMessageType>,
+) -> Option<ControlFlow<()>> {
+  tracing::debug!(
+    ">> Client {} SEND message: {:?}",
+    client_session.addr,
+    s_new_message
+  );
+  if let Ok(rs) = check_user_join_group(conn, client_session.user_id, s_new_message.group_id) {
+    if rs {
+      let insert_message = s_new_message.build_new_message(client_session.user_id);
+      let insertion_rs = create_new_message(conn, insert_message);
+
+      if insertion_rs.is_err() {
+        return Some(ControlFlow::Break(()));
+      }
+      let mut message_content = SMessageContent::from(insertion_rs.unwrap());
+      message_content.username = Some(client_session.username.clone());
+      let send_rs = connections::send_message_event_to_group(
+        conn,
+        SMessageType::Receive(message_content),
+        s_new_message.group_id,
+      );
+      if send_rs.is_err() {
+        tracing::error!("Failed to send message event to group");
+      } else {
+        tracing::debug!("Send new message to {} clients", send_rs.unwrap());
+      }
+    } else {
+      tracing::debug!(
+        "Client {} did  not joined group {}",
+        client_session.addr,
+        s_new_message.group_id
+      );
+      if current_sender
+        .send(SMessageType::AuthenticateResponse(
+          AuthenticationStatusCode::NoPermission.into(),
+        ))
+        .is_err()
+      {
+        tracing::error!(
+          "Failed to send AuthenticateResponse to client {}",
+          client_session.addr
+        );
+      }
+    }
+  } else {
+    tracing::debug!(
+      "Client {} does not have permission to access group {}",
+      client_session.addr,
+      s_new_message.group_id
+    );
+    if current_sender
+      .send(SMessageType::AuthenticateResponse(
+        AuthenticationStatusCode::NoPermission.into(),
+      ))
+      .is_err()
+    {
+      tracing::error!("Failed to send AuthenticateResponse to client");
+    }
+  }
+  None
 }

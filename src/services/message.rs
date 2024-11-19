@@ -1,7 +1,7 @@
 use chrono::{NaiveDateTime, NaiveTime, Utc};
 use diesel::{
-  pg::Pg, ExpressionMethods, JoinOnDsl, OptionalExtension, QueryDsl, RunQueryDsl, SelectableHelper,
-  TextExpressionMethods,
+  pg::Pg, BoolExpressionMethods, ExpressionMethods, JoinOnDsl, OptionalExtension, QueryDsl,
+  RunQueryDsl, SelectableHelper, TextExpressionMethods,
 };
 
 use crate::{
@@ -248,6 +248,42 @@ pub fn update_message(
       );
       return DBError::QueryError("Failed to delete message".into());
     })?;
-
   Ok(message)
+}
+
+pub fn delete_messages(
+  conn: &mut PoolPGConnectionType,
+  message_ids: &Vec<i32>,
+) -> Result<bool, DBError> {
+  let result = diesel::delete(messages::table)
+    .filter(messages::id.eq_any(message_ids))
+    .execute(conn)
+    .map_err(|err| {
+      tracing::error!(
+        "Failed to delete message with ids: {:?}, cause: {}",
+        &message_ids,
+        err.to_string()
+      );
+      DBError::QueryError("Failed to delete messages".to_string());
+    });
+  if result.unwrap() > 0 {
+    Ok(true)
+  } else {
+    Ok(false)
+  }
+}
+pub fn check_owner_of_messages(
+  conn: &mut PoolPGConnectionType,
+  user_id: i32,
+  message_ids: &Vec<i32>,
+) -> Result<Vec<i32>, diesel::result::Error> {
+  let rs = messages::table
+    .filter(
+      messages::id
+        .eq_any(message_ids)
+        .and(messages::user_id.ne(user_id)),
+    )
+    .select(messages::id)
+    .get_results::<i32>(conn)?;
+  Ok(rs)
 }

@@ -49,6 +49,24 @@ pub mod custom_serde {
       None => serializer.serialize_none(),
     }
   }
+  pub fn deserialize_with_naive_date_option<'de, D>(
+    deserializer: D,
+  ) -> Result<Option<NaiveDate>, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    // Attempt to deserialize an optional string
+    let opt: Option<&str> = Option::deserialize(deserializer)?;
+    tracing::debug!("deserialize option date: {:?}", opt);
+
+    // If there is Some value, try to parse it as a NaiveDate, else return None
+    match opt {
+      Some(s) => NaiveDate::parse_from_str(s, "%Y-%m-%d")
+        .map(Some)
+        .map_err(serde::de::Error::custom),
+      None => Ok(None),
+    }
+  }
 
   pub fn serialize_naive_datetime<S>(
     datetime: &NaiveDateTime,
@@ -83,10 +101,22 @@ pub mod custom_serde {
       Err(serde::de::Error::custom("Not a valid Utc Datetime format"))
     }
   }
+  pub fn serialize_with_date_time_utc_option<S>(
+    datetime_opt: &Option<DateTime<Utc>>,
+    serializer: S,
+  ) -> Result<S::Ok, S::Error>
+  where
+    S: Serializer,
+  {
+    match datetime_opt {
+      Some(datetime) => serializer.serialize_str(&datetime.to_rfc3339()),
+      None => serializer.serialize_none(),
+    }
+  }
 
-  pub fn deserialize_with_naive_date_option<'de, D>(
+  pub fn deserialize_with_date_time_utc_option<'de, D>(
     deserializer: D,
-  ) -> Result<Option<NaiveDate>, D::Error>
+  ) -> Result<Option<DateTime<Utc>>, D::Error>
   where
     D: Deserializer<'de>,
   {
@@ -96,7 +126,7 @@ pub mod custom_serde {
 
     // If there is Some value, try to parse it as a NaiveDate, else return None
     match opt {
-      Some(s) => NaiveDate::parse_from_str(s, "%Y-%m-%d")
+      Some(s) => DateTime::from_str(s)
         .map(Some)
         .map_err(serde::de::Error::custom),
       None => Ok(None),
