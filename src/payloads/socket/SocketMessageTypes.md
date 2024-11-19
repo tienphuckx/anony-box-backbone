@@ -91,16 +91,43 @@ The "Edit" message structure, used by the client to modify the content of an exi
 
 ---
 
-**SMessageType::Delete JSON:**
+**SMessageType::DeleteMessage JSON:**
 
-The "Delete" message structure, which specifies a list of message IDs that the client requests to delete from the group.
+The "Delete" message structure, which specifies a list of message identifiers `message_ids` that the client requests to delete from the specific group `group_id`.
 
 ```json
 {
-  "Delete": [
-    1,
-    2,
-    3
-  ]
+    "DeleteMessage": {
+        "group_id": 24,
+        "message_ids": [
+            38,39
+        ]
+    }
+}
+```
+**SMessageType::DeleteMessageResponse JSON:**
+
+After client request a delete message, if an error occurs the Delete message response will be sent from server with a short message to explain the error.
+```json
+{
+  "DeleteMessageResponse": {
+      "status_code": 2,
+      "message": "Failed to delete message, maybe one of messages is not found"
+  }
+}
+```
+
+**SMessageType::DeleteMessageEvent JSON:**
+The message will be responded from server if a delete message request was processed successfully to inform all connected client in a group.
+
+```json
+{
+    "DeleteMessageEvent": {
+        "group_id": 24,
+        "message_ids": [
+            38,
+            39
+        ]
+    }
 }
 ```

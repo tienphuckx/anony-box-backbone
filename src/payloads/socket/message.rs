@@ -5,19 +5,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-pub struct ResultMessage {
-  pub status_code: i32,
-  pub message: String,
-}
-impl ResultMessage {
-  pub fn new(status_code: i32, message: &str) -> Self {
-    Self {
-      status_code,
-      message: message.into(),
-    }
-  }
-}
+use super::common::ResultMessage;
 
 /// ## Authentication Result structure
 ///
@@ -57,8 +45,13 @@ impl Into<ResultMessage> for AuthenticationStatusCode {
     }
   }
 }
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct DeleteMessageData {
+  pub group_id: i32,
+  pub message_ids: Vec<i32>,
+}
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum SMessageType {
   Authenticate(String),
   AuthenticateResponse(ResultMessage),
@@ -67,7 +60,9 @@ pub enum SMessageType {
   Send(SNewMessage),
   Receive(SMessageContent),
   Edit(SMessageContent),
-  Delete(Vec<i32>),
+  DeleteMessage(DeleteMessageData),
+  DeleteMessageEvent(DeleteMessageData),
+  DeleteMessageResponse(ResultMessage),
   UnSupportMessage(String),
 }
 
