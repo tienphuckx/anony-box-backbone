@@ -221,9 +221,9 @@ pub async fn delete_message(
   
 }
 
-/// ### Handler for PATCH /messages/:message_id
+/// ### Handler for PUT /messages/:message_id
 #[utoipa::path(
-  patch,
+  put,
   path = "/messages/{message_id}",
   params(
     (
@@ -250,7 +250,7 @@ pub async fn delete_message(
       (status = 500, description = "Database error")
   ),
 )]
-pub async fn patch_message(
+pub async fn update_message(
   State(app_state): State<Arc<AppState>>,
   Path(message_id): Path<i32>,
   UserToken(user_token): UserToken,

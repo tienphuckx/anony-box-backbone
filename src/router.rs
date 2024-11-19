@@ -22,7 +22,6 @@ use crate::{
   },
   AppState,
 };
-use crate::handlers::group::{get_gr_setting, get_gr_setting_v1};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -34,14 +33,13 @@ use crate::handlers::group::{get_gr_setting, get_gr_setting_v1};
     handlers::group::get_waiting_list,
     handlers::group::process_joining_request,
     handlers::group::del_gr_req,
-    handlers::group::get_gr_setting,
     handlers::group::get_gr_setting_v1,
     handlers::group::rm_user_from_gr,
     handlers::group::user_leave_gr,
     handlers::group::get_group_detail_with_extra_info, 
     handlers::message::send_msg,
     handlers::message::get_messages,
-    handlers::message::patch_message,
+    handlers::message::update_message,
     handlers::message::delete_message,
     handlers::user::add_user_docs
     
@@ -99,11 +97,10 @@ pub fn init_router() -> Router<Arc<AppState>> {
     .route("/add-user", post(handlers::user::add_user)) //first: create a new user
     .route("/create-group",post(handlers::group::create_group_with_user))
     .route("/messages", post(handlers::message::send_msg))
-    .route("/messages/:message_id", delete(handlers::message::delete_message).patch(handlers::message::patch_message))
+    .route("/messages/:message_id", delete(handlers::message::delete_message).put(handlers::message::update_message))
     .route("/groups/:group_id/messages", get(handlers::message::get_messages))
     .route("/group-detail/:group_id", get(handlers::group::get_group_detail_with_extra_info))
-    .route("/group-detail/setting/:gr_id/:u_id", get(get_gr_setting))
-    .route("/group-detail/setting/:gr_id", get(get_gr_setting_v1))
+    .route("/group-detail/setting/:gr_id", get(handlers::group::get_gr_setting_v1))
     .route("/add-user-doc", post(handlers::user::add_user_docs))
     .route("/ws", any(handlers::socket::handler::ws_handler))
     .fallback(handlers::common::fallback)
