@@ -1,5 +1,6 @@
 use crate::database::models::{Message, MessageTypeEnum, NewMessage};
 
+use crate::payloads::messages::UpdateMessage;
 use crate::utils::minors::custom_serde::*;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -55,14 +56,21 @@ pub struct DeleteMessageData {
 pub enum SMessageType {
   Authenticate(String),
   AuthenticateResponse(ResultMessage),
+
   SubscribeGroup(i32),
   SubscribeGroupResponse(ResultMessage),
+
   Send(SNewMessage),
   Receive(SMessageContent),
-  Edit(SMessageContent),
+
+  EditMessage(SMessageEdit),
+  EditMessageResponse(ResultMessage),
+  EditMessageData(SMessageContent),
+
   DeleteMessage(DeleteMessageData),
   DeleteMessageEvent(DeleteMessageData),
   DeleteMessageResponse(ResultMessage),
+
   UnSupportMessage(String),
 }
 
@@ -80,6 +88,11 @@ pub struct SMessageContent {
     deserialize_with = "deserialize_with_date_time_utc"
   )]
   pub created_at: DateTime<Utc>,
+  #[serde(
+    serialize_with = "serialize_with_date_time_utc_option",
+    deserialize_with = "deserialize_with_date_time_utc_option"
+  )]
+  pub updated_at: Option<DateTime<Utc>>,
   pub status: SMessageStatus,
 }
 impl From<Message> for SMessageContent {
@@ -93,6 +106,7 @@ impl From<Message> for SMessageContent {
       message_type: value.message_type,
       content: value.content.unwrap_or_default(),
       created_at: value.created_at.and_utc(),
+      updated_at: value.updated_at.map(|data| data.and_utc()),
       status: SMessageStatus::Sent,
     }
   }
@@ -120,6 +134,22 @@ impl<'a> SNewMessage {
       content: Some(&self.content),
       created_at: Utc::now().naive_utc(),
       message_type,
+    }
+  }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub struct SMessageEdit {
+  pub message_id: i32,
+  pub group_id: i32,
+  pub content: Option<String>,
+  pub message_type: Option<MessageTypeEnum>,
+}
+impl Into<UpdateMessage> for SMessageEdit {
+  fn into(self) -> UpdateMessage {
+    UpdateMessage {
+      content: self.content,
+      message_type: self.message_type,
     }
   }
 }

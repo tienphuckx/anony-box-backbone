@@ -6,7 +6,9 @@ use crate::{
   },
   payloads::socket::{
     common::ResultMessage,
-    message::{AuthenticationStatusCode, DeleteMessageData, SMessageContent, SMessageType},
+    message::{
+      AuthenticationStatusCode, DeleteMessageData, SMessageContent, SMessageEdit, SMessageType,
+    },
   },
   services::{
     self, group::check_user_join_group, message::create_new_message, user::get_user_by_code,
@@ -268,6 +270,9 @@ async fn process_message(
         SMessageType::DeleteMessage(delete_message_data) => {
           process_delete_message(conn, client_session, current_sender, delete_message_data);
         }
+        SMessageType::EditMessage(edit_message) => {
+          process_update_message(conn, current_sender, edit_message);
+        }
         _ => {
           tracing::debug!("Cannot handle message type");
         }
@@ -295,6 +300,31 @@ async fn process_message(
     }
   }
   ControlFlow::Continue(())
+}
+
+fn process_update_message(
+  conn: &mut PoolPGConnectionType,
+  current_sender: &mut Sender<SMessageType>,
+  edit_message: SMessageEdit,
+) {
+  let SMessageEdit {
+    message_id,
+    group_id,
+    ..
+  } = edit_message.clone();
+  let message_rs = services::message::update_message(conn, message_id, edit_message.into());
+  if let Err(ref err) = message_rs {
+    let _ = current_sender.send(SMessageType::EditMessageResponse(ResultMessage::new(
+      1,
+      &format!("Failed to update message, {}", err.to_string()),
+    )));
+  } else {
+    let _ = send_message_event_to_group(
+      conn,
+      SMessageType::EditMessageData(SMessageContent::from(message_rs.unwrap())),
+      group_id,
+    );
+  }
 }
 
 fn process_delete_message(
