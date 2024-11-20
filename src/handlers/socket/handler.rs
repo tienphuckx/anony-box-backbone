@@ -1,4 +1,5 @@
 use crate::{
+  database::models::MessageStatus,
   errors::ApiError,
   handlers::socket::{
     connections::{self, send_message_event_to_group, CLIENT_SESSIONS},
@@ -7,7 +8,7 @@ use crate::{
   payloads::socket::{
     common::ResultMessage,
     message::{
-      AuthenticationStatusCode, DeleteMessageData, SMessageContent, SMessageEdit, SMessageType,
+      AuthenticationStatusCode, MessagesDataRequest, SMessageContent, SMessageEdit, SMessageType,
     },
   },
   services::{
@@ -273,6 +274,9 @@ async fn process_message(
         SMessageType::EditMessage(edit_message) => {
           process_update_message(conn, current_sender, edit_message);
         }
+        SMessageType::SeenMessages(messages_request) => {
+          process_seen_messages(conn, client_session, current_sender, messages_request);
+        }
         _ => {
           tracing::debug!("Cannot handle message type");
         }
@@ -331,10 +335,10 @@ fn process_delete_message(
   conn: &mut PoolPGConnectionType,
   client_session: &mut ClientSession,
   current_sender: &mut Sender<SMessageType>,
-  DeleteMessageData {
+  MessagesDataRequest {
     group_id,
     message_ids,
-  }: DeleteMessageData,
+  }: MessagesDataRequest,
 ) {
   tracing::debug!(">> Client {} DELETE message", client_session.addr);
   let invalid_message_ids =
@@ -361,7 +365,7 @@ fn process_delete_message(
     if let Ok(true) = services::message::delete_messages(conn, &message_ids) {
       let _ = send_message_event_to_group(
         conn,
-        SMessageType::DeleteMessageEvent(DeleteMessageData {
+        SMessageType::DeleteMessageEvent(MessagesDataRequest {
           group_id,
           message_ids,
         }),
@@ -441,4 +445,65 @@ fn process_send_message(
     }
   }
   None
+}
+
+fn process_seen_messages(
+  conn: &mut PoolPGConnectionType,
+  client_session: &mut ClientSession,
+  current_sender: &mut Sender<SMessageType>,
+  MessagesDataRequest {
+    group_id,
+    message_ids,
+  }: MessagesDataRequest,
+) {
+  // check current user joined the group
+  if let Ok(joined) = check_user_join_group(conn, client_session.user_id, group_id) {
+    if !joined {
+      let _ = current_sender.send(SMessageType::SeenMessagesResponse(ResultMessage::new(
+        1,
+        "User hasn't joined the group",
+      )));
+      return;
+    }
+  } else {
+    let _ = current_sender.send(SMessageType::SeenMessagesResponse(ResultMessage::new(
+      2,
+      "Failed to check user joined group, try again later",
+    )));
+    return;
+  }
+  // check all messages in groups
+
+  let messages_rs = services::message::get_messages_from_ids(conn, &message_ids);
+
+  if let Err(_err) = messages_rs {
+    let _ = current_sender.send(SMessageType::SeenMessagesResponse(ResultMessage::new(
+      3,
+      "Failed to get message from ids, try again later",
+    )));
+    return;
+  }
+
+  let messages = messages_rs.unwrap();
+
+  if messages.iter().any(|message| message.group_id != group_id) {
+    let _ = current_sender.send(SMessageType::SeenMessagesResponse(ResultMessage::new(
+      4,
+      &format!("One of messages is not belong to group {}", group_id),
+    )));
+    return;
+  }
+
+  // process seen messages
+  if let Err(_) = services::message::change_messages_status(conn, &message_ids, MessageStatus::Seen)
+  {
+    let _ = current_sender.send(SMessageType::SeenMessagesResponse(ResultMessage::new(
+      5,
+      "Failed to change messages status, try again later",
+    )));
+    return;
+  }
+
+  let _ = send_message_event_to_group(conn, SMessageType::SeenMessagesEvent(message_ids), group_id);
+  // propagate seen message to active client connections
 }

@@ -1,6 +1,6 @@
 # Socket Message Types's Structure
 
-
+## Authentication
 **SMessageType::Authenticate JSON:**
 
 Before a client can send or receive messages from a group, it must authenticate itself to the server using a unique authentication token.
@@ -34,8 +34,7 @@ After the client sends an authentication message, the server responds with an au
   }
 }
 ```
-
----
+## Send message
 
 **SMessageType::Send JSON:**
 
@@ -51,7 +50,7 @@ Structure of the "Send" message, used by a client to send a message to a group.
 }
 ```
 
----
+
 
 **SMessageType::Receive JSON:**
 
@@ -70,26 +69,7 @@ When a new message is sent to a group, the server sends a "Receive" message to a
 }
 ```
 
----
-
-**SMessageType::Edit JSON:**
-
-The "Edit" message structure, used by the client to modify the content of an existing message in the group.
-
-```json
-{
-  "Edit": {
-    "message_uuid": "550e8400-e29b-41d4-a716-446655440000",
-    "user_id": 1,
-    "group_id": 1,
-    "content": "Hello, Group!",
-    "created_at": "2024-11-08T12:00:00Z",
-    "status": "Sent"
-  }
-}
-```
-
----
+## Delete messages
 
 **SMessageType::DeleteMessage JSON:**
 
@@ -105,6 +85,7 @@ The "Delete" message structure, which specifies a list of message identifiers `m
   }
 }
 ```
+---
 **SMessageType::DeleteMessageResponse JSON:**
 
 After client request a delete message, if an error occurs the Delete message response will be sent from server with a short message to explain the error.
@@ -116,7 +97,7 @@ After client request a delete message, if an error occurs the Delete message res
   }
 }
 ```
-
+---
 **SMessageType::DeleteMessageEvent JSON:**
 The message will be responded from server if a delete message request was processed successfully to inform all connected client in a group.
 
@@ -132,8 +113,7 @@ The message will be responded from server if a delete message request was proces
 }
 ```
 
-
-
+## Edit message
 **SMessageType::EditMessage JSON:**
 
 The "Edit" message structure, which specifies `content`, `message_type` fields are optional, that the client requests to update specific message `message_id`.
@@ -148,6 +128,7 @@ The "Edit" message structure, which specifies `content`, `message_type` fields a
   }
 }
 ```
+---
 **SMessageType::EditMessageResponse JSON:**
 
 After client request a edit message, if an error occurs a edit message response will be sent from server with a short message to explain the error.
@@ -159,7 +140,7 @@ After client request a edit message, if an error occurs a edit message response 
   }
 }
 ```
-
+---
 **SMessageType::EditMessageData JSON:**
 The message will be responded from server if a update message request was processed successfully to inform all connected client in a group.
 
@@ -173,9 +154,50 @@ The message will be responded from server if a update message request was proces
     "content": "That is edited message 42",
     "username": null,
     "message_type": "ATTACHMENT",
+    "status": "Sent",
     "created_at": "2024-11-19T09:25:54.219284+00:00",
     "updated_at": "2024-11-19T09:26:26.979009+00:00",
     "status": "Sent"
   }
 }
 ```
+## Seen Message
+**SMessageType::SeenMessages JSON:**
+The `Seen` message structure which contains list of `messages_ids` that client requests to change status of message to seen
+```json
+{
+  "SeenMessages": {
+      "group_id": 24,
+      "message_ids": [
+          41,42
+      ]
+  }
+}
+```
+---
+**SMessageType::SeenMessagesResponse JSON:**
+After sending a seen message, if any error occurs the seen message response will be sent from server with a short message to explain the error.
+```json
+
+{
+  "SeenMessagesResponse": {
+      "status_code": 4,
+      "message": "One of messages is not belong to group 25"
+  }
+}
+
+```
+---
+**SMessageType::EditMessageData JSON:**
+The message will be responded from server if a seen message request was processed successfully to inform all connected client in a group.
+
+```json
+{
+  "SeenMessagesEvent": [
+    45,
+    46
+  ]
+}
+```
+
+

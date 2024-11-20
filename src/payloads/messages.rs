@@ -1,4 +1,4 @@
-use crate::database::models::{Message, MessageTypeEnum};
+use crate::database::models::{Message, MessageStatus, MessageTypeEnum};
 use crate::utils::minors::custom_serde::*;
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
@@ -22,6 +22,7 @@ pub struct SendMessageResponse {
   pub message_id: i32,
   pub content: String,
   pub message_type: MessageTypeEnum,
+  pub status: MessageStatus,
   #[serde(serialize_with = "serialize_with_date_time_utc")]
   pub created_at: DateTime<Utc>,
 }
@@ -33,6 +34,7 @@ impl From<Message> for SendMessageResponse {
       message_id: value.id,
       content: value.content.unwrap_or_default(),
       message_type: value.message_type,
+      status: value.status,
       created_at: value.created_at.and_utc(),
     }
   }
@@ -49,6 +51,7 @@ pub struct MessageResponse {
   pub id: i32,
   pub content: Option<String>,
   pub message_type: MessageTypeEnum,
+  pub status: MessageStatus,
   #[serde(serialize_with = "serialize_naive_datetime")]
   pub created_at: NaiveDateTime,
   #[serde(serialize_with = "serialize_naive_datetime_option")]
@@ -63,6 +66,7 @@ impl From<Message> for MessageResponse {
       id: value.id,
       content: value.content,
       message_type: value.message_type,
+      status: value.status,
       created_at: value.created_at,
       updated_at: value.updated_at,
       user_id: value.user_id,
@@ -83,6 +87,7 @@ pub struct MessageWithUser {
   pub id: i32,
   pub content: Option<String>,
   pub message_type: MessageTypeEnum,
+  pub status: MessageStatus,
   #[serde(serialize_with = "serialize_naive_datetime")]
   pub created_at: NaiveDateTime,
   #[serde(serialize_with = "serialize_naive_datetime_option")]
@@ -95,6 +100,7 @@ pub struct MessageWithUser {
 pub struct MessageFilterParams {
   pub message_type: Option<MessageTypeEnum>,
   pub content: Option<String>,
+  pub status: Option<MessageStatus>,
   #[serde(
     deserialize_with = "deserialize_with_naive_date_option",
     default = "Option::default"

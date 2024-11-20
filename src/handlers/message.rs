@@ -1,4 +1,4 @@
-use crate::database::models::{ MessageTypeEnum, NewMessage};
+use crate::database::models::{ MessageStatus, MessageTypeEnum, NewMessage};
 use crate::errors::{ApiError, DBError};
 use crate::extractors::UserToken;
 use crate::payloads::common::{ListResponse, PageRequest, OrderBy};
@@ -73,6 +73,7 @@ pub async fn send_msg(
     message_uuid: msg_request.message_uuid,
     content: Some(msg_request.content.as_str()), // Convert String to &str
     message_type: msg_request.message_type,
+    status: MessageStatus::Sent,
     created_at: Utc::now().naive_utc(),
     user_id: user.id,
     group_id: msg_request.group_id,
@@ -99,6 +100,7 @@ pub async fn send_msg(
     ("group_id" = u32, Path, description = "id of the group"),
     ("message_type" = Option<MessageTypeEnum>,Query, description = "message type enum filter"),
     ("content" = Option<String>, Query,description = "content text filter"),
+    ("status" = Option<MessageStatus>, Query,description = "message status filter"),
     ("from_date" = Option<String>, Query, description = "from created date filter"),
     ("to_date" = Option<String>, Query, description = "to created date filter"),
     ("created_at_sort" = Option<OrderBy>, Query, description = "created at sort by ASC or DESC"),
@@ -118,6 +120,7 @@ pub async fn send_msg(
                     "id": 6,
                     "content": "This is test message 1",
                     "message_type": "TEXT",
+                    "status": "Sent",
                     "created_at": "2012-12-12 12:12:12",
                     "user_id": 44,
                     "user_name": "Linus Torvalds"
@@ -127,6 +130,7 @@ pub async fn send_msg(
                     "id": 7,
                     "content": "This is test message 2",
                     "message_type": "TEXT",
+                    "status": "Sent",
                     "created_at": "2012-12-12 12:12:12",
                     "user_id": 44,
                     "user_name": "Linus Torvalds"

@@ -6,7 +6,7 @@ use diesel::{
 
 use crate::{
   database::{
-    models::{self, Message, NewMessage},
+    models::{self, Message, MessageStatus, NewMessage},
     schema::{
       messages::{self},
       users,
@@ -55,6 +55,9 @@ pub fn get_messages(
   if let Some(ref content_val) = message_filters.content {
     query = query.filter(messages::content.like(format!("%{}%", content_val)));
   }
+  if let Some(ref status_val) = message_filters.status {
+    query = query.filter(messages::status.eq(status_val));
+  }
 
   if let Some(from) = message_filters.from_date {
     let naive_datetime = NaiveDateTime::new(from, NaiveTime::from_hms_opt(0, 0, 0).unwrap());
@@ -82,6 +85,7 @@ pub fn get_messages(
       messages::id,
       messages::content,
       messages::message_type,
+      messages::status,
       messages::created_at,
       messages::updated_at,
       messages::user_id,
@@ -159,6 +163,7 @@ pub fn get_latest_messages_from_group(
       messages::id,
       messages::content,
       messages::message_type,
+      messages::status,
       messages::created_at,
       messages::updated_at,
       messages::user_id,
@@ -183,11 +188,11 @@ pub fn delete_message(conn: &mut PoolPGConnectionType, message_id: i32) -> Resul
     .execute(conn)
     .map_err(|err| {
       tracing::error!(
-        "Failed to delete message {}: {}",
+        "Failed to get latest message {}: {}",
         message_id,
         err.to_string()
       );
-      return DBError::QueryError("Failed to delete message".into());
+      return DBError::QueryError("Failed to get latest message".into());
     })?;
   if affected_rows > 0 {
     Ok(true)
@@ -208,12 +213,29 @@ pub fn get_message(
       .get_result::<Message>(conn)
       .optional()
       .map_err(|err| {
+        tracing::error!("Failed to get message {}: {}", message_id, err.to_string());
+        return DBError::QueryError("Failed to get message".into());
+      })?,
+  )
+}
+
+pub fn get_messages_from_ids(
+  conn: &mut PoolPGConnectionType,
+  message_ids: &Vec<i32>,
+) -> Result<Vec<Message>, DBError> {
+  use crate::database::schema::messages;
+  Ok(
+    messages::table
+      .filter(messages::id.eq_any(message_ids))
+      .select(Message::as_select())
+      .get_results::<Message>(conn)
+      .map_err(|err| {
         tracing::error!(
-          "Failed to delete message {}: {}",
-          message_id,
+          "Failed to get messages from ids {:?}: {}",
+          message_ids,
           err.to_string()
         );
-        return DBError::QueryError("Failed to delete message".into());
+        return DBError::QueryError("Failed to get message".into());
       })?,
   )
 }
@@ -286,4 +308,24 @@ pub fn check_owner_of_messages(
     .select(messages::id)
     .get_results::<i32>(conn)?;
   Ok(rs)
+}
+
+pub fn change_messages_status(
+  conn: &mut PoolPGConnectionType,
+  message_ids: &Vec<i32>,
+  status: MessageStatus,
+) -> Result<(), DBError> {
+  diesel::update(messages::table)
+    .filter(messages::id.eq_any(message_ids))
+    .set(messages::status.eq(status))
+    .execute(conn)
+    .map_err(|err| {
+      tracing::error!(
+        "Failed to change status of messages ids {:?}: {}",
+        message_ids,
+        err.to_string()
+      );
+      return DBError::QueryError("Failed to change status of messages".into());
+    })?;
+  Ok(())
 }
