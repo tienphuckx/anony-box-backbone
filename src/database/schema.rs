@@ -6,6 +6,10 @@ pub mod sql_types {
     pub struct Attachmenttype;
 
     #[derive(diesel::query_builder::QueryId, Clone, diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "messagestatustype"))]
+    pub struct Messagestatustype;
+
+    #[derive(diesel::query_builder::QueryId, Clone, diesel::sql_types::SqlType)]
     #[diesel(postgres_type(name = "messagetype"))]
     pub struct Messagetype;
 }
@@ -32,15 +36,16 @@ diesel::table! {
         group_code -> Varchar,
         user_id -> Int4,
         approval_require -> Nullable<Bool>,
-        maximum_members -> Nullable<Int4>,
         created_at -> Nullable<Timestamp>,
         expired_at -> Nullable<Timestamp>,
+        maximum_members -> Nullable<Int4>,
     }
 }
 
 diesel::table! {
     use diesel::sql_types::*;
     use super::sql_types::Messagetype;
+    use super::sql_types::Messagestatustype;
 
     messages (id) {
         id -> Int4,
@@ -52,6 +57,7 @@ diesel::table! {
         group_id -> Int4,
         message_uuid -> Uuid,
         updated_at -> Nullable<Timestamp>,
+        status -> Messagestatustype,
     }
 }
 

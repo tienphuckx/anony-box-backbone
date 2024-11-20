@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use super::schema::sql_types::{Attachmenttype, Messagetype};
+use super::schema::sql_types::{Attachmenttype, Messagestatustype, Messagetype};
 use chrono::NaiveDateTime;
 use diesel::{
   deserialize::{self, FromSql, FromSqlRow},
@@ -105,11 +105,6 @@ impl Default for MessageTypeEnum {
     Self::TEXT
   }
 }
-impl MessageTypeEnum {
-  pub fn default() -> Self {
-    Self::TEXT
-  }
-}
 
 impl ToSql<Messagetype, diesel::pg::Pg> for MessageTypeEnum {
   fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, diesel::pg::Pg>) -> serialize::Result {
@@ -127,6 +122,43 @@ impl FromSql<Messagetype, diesel::pg::Pg> for MessageTypeEnum {
     match bytes.as_bytes() {
       b"TEXT" => Ok(MessageTypeEnum::TEXT),
       b"ATTACHMENT" => Ok(MessageTypeEnum::ATTACHMENT),
+      _ => Err("Unrecognized enum variant".into()),
+    }
+  }
+}
+
+#[derive(
+  Debug, PartialEq, FromSqlRow, AsExpression, Eq, Clone, Serialize, Deserialize, ToSchema,
+)]
+#[diesel(sql_type = crate::database::schema::sql_types::Messagestatustype)]
+pub enum MessageStatus {
+  NotSent,
+  Sent,
+  Seen,
+}
+impl Default for MessageStatus {
+  fn default() -> Self {
+    Self::Sent
+  }
+}
+impl ToSql<Messagestatustype, diesel::pg::Pg> for MessageStatus {
+  fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, diesel::pg::Pg>) -> serialize::Result {
+    let status_str = match *self {
+      MessageStatus::NotSent => "NotSent",
+      MessageStatus::Sent => "Sent",
+      MessageStatus::Seen => "Seen",
+    };
+    out.write_all(status_str.as_bytes())?;
+    Ok(serialize::IsNull::No)
+  }
+}
+
+impl FromSql<Messagestatustype, diesel::pg::Pg> for MessageStatus {
+  fn from_sql(bytes: diesel::pg::PgValue) -> deserialize::Result<Self> {
+    match bytes.as_bytes() {
+      b"NotSent" => Ok(MessageStatus::NotSent),
+      b"Sent" => Ok(MessageStatus::Sent),
+      b"Seen" => Ok(MessageStatus::Seen),
       _ => Err("Unrecognized enum variant".into()),
     }
   }
@@ -183,6 +215,7 @@ pub struct Message {
   pub id: i32,
   pub content: Option<String>,
   pub message_type: MessageTypeEnum,
+  pub status: MessageStatus,
   pub created_at: NaiveDateTime,
   pub updated_at: Option<NaiveDateTime>,
   pub user_id: i32,
@@ -196,6 +229,7 @@ pub struct NewMessage<'a> {
   pub message_uuid: Uuid,
   pub content: Option<&'a str>,
   pub message_type: MessageTypeEnum,
+  pub status: MessageStatus,
   pub created_at: NaiveDateTime,
   pub user_id: i32,
   pub group_id: i32,

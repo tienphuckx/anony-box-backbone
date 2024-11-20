@@ -1,4 +1,4 @@
-use crate::database::models::{Message, MessageTypeEnum, NewMessage};
+use crate::database::models::{Message, MessageStatus, MessageTypeEnum, NewMessage};
 
 use crate::payloads::messages::UpdateMessage;
 use crate::utils::minors::custom_serde::*;
@@ -47,7 +47,7 @@ impl Into<ResultMessage> for AuthenticationStatusCode {
   }
 }
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct DeleteMessageData {
+pub struct MessagesDataRequest {
   pub group_id: i32,
   pub message_ids: Vec<i32>,
 }
@@ -67,9 +67,13 @@ pub enum SMessageType {
   EditMessageResponse(ResultMessage),
   EditMessageData(SMessageContent),
 
-  DeleteMessage(DeleteMessageData),
-  DeleteMessageEvent(DeleteMessageData),
+  DeleteMessage(MessagesDataRequest),
+  DeleteMessageEvent(MessagesDataRequest),
   DeleteMessageResponse(ResultMessage),
+
+  SeenMessages(MessagesDataRequest),
+  SeenMessagesEvent(Vec<i32>),
+  SeenMessagesResponse(ResultMessage),
 
   UnSupportMessage(String),
 }
@@ -107,7 +111,7 @@ impl From<Message> for SMessageContent {
       content: value.content.unwrap_or_default(),
       created_at: value.created_at.and_utc(),
       updated_at: value.updated_at.map(|data| data.and_utc()),
-      status: SMessageStatus::Sent,
+      status: SMessageStatus::from(value.status),
     }
   }
 }
@@ -132,6 +136,7 @@ impl<'a> SNewMessage {
       user_id,
       group_id: self.group_id,
       content: Some(&self.content),
+      status: MessageStatus::Sent,
       created_at: Utc::now().naive_utc(),
       message_type,
     }
@@ -156,7 +161,26 @@ impl Into<UpdateMessage> for SMessageEdit {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub enum SMessageStatus {
+  NotSent,
   Sent,
-  InProgress,
-  Error,
+  Seen,
+}
+impl Into<MessageStatus> for SMessageStatus {
+  fn into(self) -> MessageStatus {
+    match self {
+      Self::NotSent => MessageStatus::NotSent,
+      Self::Sent => MessageStatus::Sent,
+      Self::Seen => MessageStatus::Seen,
+    }
+  }
+}
+
+impl From<MessageStatus> for SMessageStatus {
+  fn from(value: MessageStatus) -> SMessageStatus {
+    match value {
+      MessageStatus::NotSent => Self::NotSent,
+      MessageStatus::Sent => Self::Sent,
+      MessageStatus::Seen => Self::Seen,
+    }
+  }
 }
