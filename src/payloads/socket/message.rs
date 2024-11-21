@@ -47,7 +47,7 @@ impl Into<ResultMessage> for AuthenticationStatusCode {
   }
 }
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct MessagesDataRequest {
+pub struct MessagesData {
   pub group_id: i32,
   pub message_ids: Vec<i32>,
 }
@@ -67,12 +67,12 @@ pub enum SMessageType {
   EditMessageResponse(ResultMessage),
   EditMessageData(SMessageContent),
 
-  DeleteMessage(MessagesDataRequest),
-  DeleteMessageEvent(MessagesDataRequest),
+  DeleteMessage(MessagesData),
+  DeleteMessageEvent(MessagesData),
   DeleteMessageResponse(ResultMessage),
 
-  SeenMessages(MessagesDataRequest),
-  SeenMessagesEvent(Vec<i32>),
+  SeenMessages(MessagesData),
+  SeenMessagesEvent(MessagesData),
   SeenMessagesResponse(ResultMessage),
 
   UnSupportMessage(String),

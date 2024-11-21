@@ -8,7 +8,7 @@ use crate::{
   payloads::socket::{
     common::ResultMessage,
     message::{
-      AuthenticationStatusCode, MessagesDataRequest, SMessageContent, SMessageEdit, SMessageType,
+      AuthenticationStatusCode, MessagesData, SMessageContent, SMessageEdit, SMessageType,
     },
   },
   services::{
@@ -335,10 +335,10 @@ fn process_delete_message(
   conn: &mut PoolPGConnectionType,
   client_session: &mut ClientSession,
   current_sender: &mut Sender<SMessageType>,
-  MessagesDataRequest {
+  MessagesData {
     group_id,
     message_ids,
-  }: MessagesDataRequest,
+  }: MessagesData,
 ) {
   tracing::debug!(">> Client {} DELETE message", client_session.addr);
   let invalid_message_ids =
@@ -365,7 +365,7 @@ fn process_delete_message(
     if let Ok(true) = services::message::delete_messages(conn, &message_ids) {
       let _ = send_message_event_to_group(
         conn,
-        SMessageType::DeleteMessageEvent(MessagesDataRequest {
+        SMessageType::DeleteMessageEvent(MessagesData {
           group_id,
           message_ids,
         }),
@@ -451,10 +451,10 @@ fn process_seen_messages(
   conn: &mut PoolPGConnectionType,
   client_session: &mut ClientSession,
   current_sender: &mut Sender<SMessageType>,
-  MessagesDataRequest {
+  MessagesData {
     group_id,
     message_ids,
-  }: MessagesDataRequest,
+  }: MessagesData,
 ) {
   // check current user joined the group
   if let Ok(joined) = check_user_join_group(conn, client_session.user_id, group_id) {
@@ -504,6 +504,13 @@ fn process_seen_messages(
     return;
   }
 
-  let _ = send_message_event_to_group(conn, SMessageType::SeenMessagesEvent(message_ids), group_id);
+  let _ = send_message_event_to_group(
+    conn,
+    SMessageType::SeenMessagesEvent(MessagesData {
+      group_id,
+      message_ids,
+    }),
+    group_id,
+  );
   // propagate seen message to active client connections
 }

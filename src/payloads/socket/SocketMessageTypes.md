@@ -182,21 +182,24 @@ After sending a seen message, if any error occurs the seen message response will
 {
   "SeenMessagesResponse": {
       "status_code": 4,
-      "message": "One of messages is not belong to group 25"
+      "message": "One of messages is not belong to group 24"
   }
 }
 
 ```
 ---
-**SMessageType::EditMessageData JSON:**
+**SMessageType::SeenMessagesEvent JSON:**
 The message will be responded from server if a seen message request was processed successfully to inform all connected client in a group.
 
 ```json
 {
-  "SeenMessagesEvent": [
-    45,
-    46
-  ]
+  "SeenMessagesEvent": {
+    "group_id": 24,
+    "message_ids": [
+      33,
+      37
+    ]
+  }
 }
 ```
 
