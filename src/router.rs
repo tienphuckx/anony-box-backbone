@@ -41,7 +41,9 @@ use crate::{
     handlers::message::get_messages,
     handlers::message::update_message,
     handlers::message::delete_message,
-    handlers::user::add_user_docs
+    handlers::user::add_user_docs,
+    handlers::file::upload_file,
+    handlers::file::serve_file
     
   ),
   components(schemas(
@@ -102,6 +104,8 @@ pub fn init_router() -> Router<Arc<AppState>> {
     .route("/group-detail/:group_id", get(handlers::group::get_group_detail_with_extra_info))
     .route("/group-detail/setting/:gr_id", get(handlers::group::get_gr_setting_v1))
     .route("/add-user-doc", post(handlers::user::add_user_docs))
+    .route("/files", post(handlers::file::upload_file))
+    .route("/files/:filename", get(handlers::file::serve_file))
     .route("/ws", any(handlers::socket::handler::ws_handler))
     .fallback(handlers::common::fallback)
     .merge(get_swagger_ui())
