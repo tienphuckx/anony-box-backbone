@@ -1,12 +1,11 @@
 use std::{env, sync::Arc, time::Duration};
 
 use axum::{
-  routing::{any, delete, get, post},
-  Router,
+  extract::DefaultBodyLimit, routing::{any, delete, get, post}, Router
 };
 use axum::http::{HeaderValue, Method};
 use dotenvy::dotenv;
-use tower_http::{timeout::TimeoutLayer, trace::TraceLayer};
+use tower_http::{limit::RequestBodyLimitLayer, timeout::TimeoutLayer, trace::TraceLayer};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 use tower_http::cors::{CorsLayer, Any};
@@ -112,4 +111,6 @@ pub fn init_router() -> Router<Arc<AppState>> {
     .layer(TraceLayer::new_for_http())
     .layer(cors)
     .layer(TimeoutLayer::new(Duration::from_secs(10)))
+    .layer(DefaultBodyLimit::disable())
+    .layer(RequestBodyLimitLayer::new(10* 1024 * 1024))
 }

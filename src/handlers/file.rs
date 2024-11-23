@@ -1,6 +1,8 @@
 use crate::{
-  errors::ApiError, payloads::minors::FileResponse,
-  utils::minors::generate_file_name_with_timestamp, UPLOADS_DIRECTORY,
+  errors::ApiError,
+  payloads::minors::FileResponse,
+  utils::minors::{generate_file_name_with_timestamp, get_server_url},
+  UPLOADS_DIRECTORY,
 };
 use axum::{
   body::{Body, Bytes},
@@ -19,6 +21,7 @@ use tokio::{
 use tokio_util::io::{ReaderStream, StreamReader};
 use utoipa::ToSchema;
 
+/// Handler to serve static files efficiently with streaming
 #[utoipa::path(
   get,
   path = "/files/{filename}",
@@ -29,7 +32,6 @@ use utoipa::ToSchema;
       (status = 200, description = "OK")
   )
 )]
-/// Handler to serve static files efficiently with streaming
 pub async fn serve_file(Path(filename): Path<String>) -> Response {
   // Construct the path to the static file directory
   let base_path = PathBuf::from(UPLOADS_DIRECTORY);
@@ -72,6 +74,7 @@ pub struct UploadFile {
   pub file: Vec<u8>,
 }
 
+/// Handler to upload a file to server
 #[utoipa::path(
     post,
     path = "/files",
@@ -82,17 +85,26 @@ pub struct UploadFile {
 )]
 pub async fn upload_file(mut multipart: Multipart) -> Result<Json<FileResponse>, ApiError> {
   let mut file = None;
-  while let Ok(Some(field)) = multipart.next_field().await {
-    let name = field.name().unwrap().to_string();
-    if field.content_type().is_none() {
-      return Err(ApiError::MissingField("content-type header".to_owned()));
+  loop {
+    let next_field = multipart.next_field().await;
+    if let Err(ref err) = next_field {
+      tracing::error!("multipart err: {}", err.to_string());
+      break;
     }
-    let content_type = field.content_type().unwrap();
-    tracing::debug!("File received with content type: {content_type}");
+    if let Some(field) = next_field.unwrap() {
+      let name = field.name().unwrap().to_string();
+      if field.content_type().is_none() {
+        return Err(ApiError::MissingField("content-type header".to_owned()));
+      }
+      let content_type = field.content_type().unwrap();
+      tracing::debug!("File received with content type: {content_type}");
 
-    if name == "file" {
-      let file_name = field.file_name().unwrap().to_owned();
-      file = Some((file_name, field))
+      if name == "file" {
+        let file_name = field.file_name().unwrap().to_owned();
+        file = Some((file_name, content_type.to_owned(), field))
+      }
+    } else {
+      break;
     }
   }
 
@@ -101,10 +113,14 @@ pub async fn upload_file(mut multipart: Multipart) -> Result<Json<FileResponse>,
   }
 
   let file = file.unwrap();
-  stream_to_file(&file.0, file.1).await
+  stream_to_file(&file.0, &file.1, file.2).await
 }
 
-async fn stream_to_file<S, E>(file_name: &str, stream: S) -> Result<Json<FileResponse>, ApiError>
+async fn stream_to_file<S, E>(
+  file_name: &str,
+  content_type: &str,
+  stream: S,
+) -> Result<Json<FileResponse>, ApiError>
 where
   S: Stream<Item = Result<Bytes, E>>,
   E: Into<BoxError>,
@@ -122,9 +138,15 @@ where
 
     // Copy the body into the file.
     tokio::io::copy(&mut body_reader, &mut file).await?;
+    let file_url = format!(
+      "{server_url}/files/{file_path}",
+      server_url = get_server_url(),
+      file_path = new_file_name
+    );
     let file_response = FileResponse {
       name: new_file_name,
-      file_path: path.to_str().unwrap().to_owned(),
+      content_type: content_type.into(),
+      file_path: file_url,
     };
     Ok(Json(file_response))
   }

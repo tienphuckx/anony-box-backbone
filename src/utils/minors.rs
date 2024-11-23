@@ -1,5 +1,9 @@
+use std::env;
+
 use axum_extra::extract::CookieJar;
 use chrono::Utc;
+
+use crate::{DEFAULT_SERVER_ADDRESS, DEFAULT_SERVER_PORT};
 
 #[allow(dead_code)]
 pub fn get_value_from_cookie(cookie_jar: CookieJar, key: &str) -> Option<String> {
@@ -37,4 +41,14 @@ pub fn generate_file_name_with_timestamp(file_name: &str) -> String {
   rs.push_str("_");
   rs.push_str(file_name);
   rs
+}
+
+pub fn get_server_url() -> String {
+  let server_addr = env::var("SERVER_ADDRESS").unwrap_or(DEFAULT_SERVER_ADDRESS.to_string());
+  let server_port = if let Ok(value) = env::var("SERVER_PORT") {
+    value.parse::<u16>().unwrap_or(DEFAULT_SERVER_PORT)
+  } else {
+    DEFAULT_SERVER_PORT
+  };
+  format!("{proto}://{server_addr}:{server_port}", proto = "http")
 }
