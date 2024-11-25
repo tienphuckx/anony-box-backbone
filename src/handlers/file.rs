@@ -1,19 +1,20 @@
 use crate::{
-  errors::ApiError,
+  errors::{ApiError, DBError},
+  extractors::UserToken,
   payloads::minors::FileResponse,
   utils::minors::{generate_file_name_with_timestamp, get_server_url},
-  UPLOADS_DIRECTORY,
+  AppState, UPLOADS_DIRECTORY,
 };
 use axum::{
   body::{Body, Bytes},
-  extract::Path,
+  extract::{Path, State},
   http::{header, StatusCode},
   response::{IntoResponse, Response},
   BoxError, Json,
 };
 use axum_extra::extract::Multipart;
 use futures::{Stream, TryFutureExt, TryStreamExt};
-use std::{io, path::PathBuf};
+use std::{io, path::PathBuf, sync::Arc};
 use tokio::{
   fs::File,
   io::{BufReader, BufWriter},
@@ -77,24 +78,39 @@ pub struct UploadFile {
 /// Handler to upload a file to server
 #[utoipa::path(
     post,
+    params(
+      (
+        "x-user-code" = String, Header, description = "user code for authentication",
+        example = "6C70F6E0A888C1360AD532C66D8F1CD0ED48C1CC47FA1AE6665B1FC3DAABB468"
+      ),
+    ),
     path = "/files",
     request_body(content_type = "multipart/form-data", content = inline(UploadFile), description = "File to upload"),
     responses(
         (status = 200, description = "OK")
     )
 )]
-pub async fn upload_file(mut multipart: Multipart) -> Result<Json<FileResponse>, ApiError> {
+pub async fn upload_file(
+  State(state): State<Arc<AppState>>,
+  UserToken(token): UserToken,
+  mut multipart: Multipart,
+) -> Result<Json<FileResponse>, ApiError> {
+  let conn = &mut state
+    .db_pool
+    .get()
+    .map_err(|err| ApiError::DatabaseError(DBError::ConnectionError(err)))?;
+  super::common::check_user_exists(conn, token).await?;
   let mut file = None;
   loop {
     let next_field = multipart.next_field().await;
     if let Err(ref err) = next_field {
-      tracing::error!("multipart err: {}", err.to_string());
+      tracing::error!("multipart error: {}", err.to_string());
       break;
     }
     if let Some(field) = next_field.unwrap() {
       let name = field.name().unwrap().to_string();
       if field.content_type().is_none() {
-        return Err(ApiError::MissingField("content-type header".to_owned()));
+        return Err(ApiError::MissingField("Content-type header".to_owned()));
       }
       let content_type = field.content_type().unwrap();
       tracing::debug!("File received with content type: {content_type}");

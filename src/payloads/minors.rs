@@ -12,17 +12,24 @@ pub enum ContentType {
 
 impl From<&str> for ContentType {
   fn from(value: &str) -> Self {
-    match value {
-      "text/html" | "text/plain" | "text/csv" | "application/json" | "text/javascript" => {
-        Self::Text
+    // Match on broad categories first, then handle specifics
+    if value.starts_with("text") || value == "application/json" {
+      Self::Text
+    } else if value.starts_with("audio/") {
+      Self::Audio
+    } else if value.starts_with("video/") {
+      Self::Video
+    } else if value.starts_with("image/") {
+      Self::Image
+    } else if value.starts_with("application/") {
+      match value {
+        "application/zip" | "application/x-7z-compressed" | "application/vnd.rar" => {
+          Self::Compression
+        }
+        _ => Self::Unknown,
       }
-      "audio/mpeg" | "audio/wav" => Self::Audio,
-      "video/mp4" | "video/mpeg" | "video/webm" => Self::Video,
-      "image/png" | "image/jpeg" | "image/webp" => Self::Image,
-      "application/zip" | "application/x-7z-compressed" | "application/vnd.rar" => {
-        Self::Compression
-      }
-      _ => Self::Unknown,
+    } else {
+      Self::Unknown
     }
   }
 }
