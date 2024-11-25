@@ -43,7 +43,7 @@ pub mod custom_serde {
   {
     match datetime_opt {
       Some(date_time) => {
-        let s = date_time.format("%Y-%m-%d %H:%M:%S").to_string();
+        let s = date_time.and_utc().to_rfc3339();
         serializer.serialize_str(&s)
       }
       None => serializer.serialize_none(),
@@ -75,7 +75,7 @@ pub mod custom_serde {
   where
     S: Serializer,
   {
-    let s = datetime.format("%Y-%m-%d %H:%M:%S").to_string();
+    let s = datetime.and_utc().to_rfc3339();
     serializer.serialize_str(&s)
   }
 

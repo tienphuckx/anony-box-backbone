@@ -545,11 +545,11 @@ async fn process_group_list(
             group_id,
             group_name,
             group_code,
-            expired_at: expired_at.unwrap_or_default().to_string(),
+            expired_at: expired_at.unwrap_or_default().and_utc().to_rfc3339(),
             latest_ms_content,
-            latest_ms_time: latest_ms_time.to_string(),
+            latest_ms_time: latest_ms_time.and_utc().to_rfc3339(),
             latest_ms_username,
-            created_at: created_at.unwrap_or_default().to_string(),
+            created_at: created_at.unwrap_or_default().and_utc().to_rfc3339(),
         });
     }
 
@@ -692,13 +692,15 @@ fn validate_owner_of_group(
                     "id": 2,
                     "user_id": 39,
                     "username": "thanhnguyen",
-                    "message": "Hello my join request 1"
+                    "message": "Hello my join request 1",
+                    "created_at": "2024-10-31T09:31:18.963812+00:00"
                   },
                   {
                     "id": 4,
                     "user_id": 40,
                     "username": "sangtien",
-                    "message": "Hello my join request 2"
+                    "message": "Hello my join request 2",
+                    "created_at": "2024-10-31T09:31:45.775272+00:00"
                   }
                 ]
               }
@@ -754,6 +756,7 @@ pub async fn get_waiting_list(
       user_id: object.1.id,
       username: object.1.username.clone(),
       message: object.0.message.clone().unwrap_or_default(),
+      created_at : object.0.created_at.and_utc()
     })
     .collect::<Vec<WaitingListResponse>>();
   let count = get_count_waiting_list(conn, group_id).map_err(|_| {
@@ -1027,8 +1030,8 @@ pub async fn get_group_detail_with_extra_info(
     max_member: max_member.unwrap_or_default(), // Use default if max_member is None
     joined_member: joined_member as i32,
     waiting_member: waiting_member as i32,
-    created_at: created_at.map(|dt| dt.to_string()).unwrap_or_default(),
-    expired_at: expired_at.map(|dt| dt.to_string()).unwrap_or_default(),
+    created_at: created_at.map(|dt| dt.and_utc().to_rfc3339()).unwrap_or_default(),
+    expired_at: expired_at.map(|dt| dt.and_utc().to_rfc3339()).unwrap_or_default(),
     messages: latest_message,
   };
 
@@ -1135,8 +1138,8 @@ pub async fn get_gr_setting_v1(
             owner_id: group.user_id,
             group_name: group.name,
             group_code: group.group_code,
-            expired_at: group.expired_at.map_or("N/A".to_string(), |ts| ts.to_string()),
-            created_at: group.created_at.map_or("N/A".to_string(), |ts| ts.to_string()),
+            expired_at: group.expired_at.map_or("N/A".to_string(), |ts| ts.and_utc().to_rfc3339()),
+            created_at: group.created_at.map_or("N/A".to_string(), |ts| ts.and_utc().to_rfc3339()),
             maximum_members: group.maximum_members.unwrap_or_default(),
             total_joined_member,
             list_joined_member,

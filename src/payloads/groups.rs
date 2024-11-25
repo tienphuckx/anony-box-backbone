@@ -1,4 +1,5 @@
 use crate::payloads::messages::MessageWithUser;
+use crate::utils::minors::custom_serde::*;
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -88,6 +89,8 @@ pub struct WaitingListResponse {
   pub user_id: i32,
   pub username: String,
   pub message: String,
+  #[serde(serialize_with = "serialize_with_date_time_utc")]
+  pub created_at: DateTime<Utc>,
 }
 
 #[derive(Deserialize, ToSchema)]
