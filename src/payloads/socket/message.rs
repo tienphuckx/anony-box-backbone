@@ -1,7 +1,7 @@
 use crate::database::models::{Message, MessageStatus, MessageTypeEnum, NewMessage};
 
 use crate::payloads::messages::UpdateMessage;
-use crate::utils::minors::custom_serde::*;
+use crate::utils::custom_serde::*;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;

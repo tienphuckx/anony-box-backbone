@@ -1,12 +1,11 @@
 use std::{env, sync::Arc, time::Duration};
 
 use axum::{
-  routing::{any, delete, get, post},
-  Router,
+  extract::DefaultBodyLimit, routing::{any, delete, get, post}, Router
 };
 use axum::http::{HeaderValue, Method};
 use dotenvy::dotenv;
-use tower_http::{timeout::TimeoutLayer, trace::TraceLayer};
+use tower_http::{limit::RequestBodyLimitLayer, timeout::TimeoutLayer, trace::TraceLayer};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 use tower_http::cors::{CorsLayer, Any};
@@ -41,7 +40,9 @@ use crate::{
     handlers::message::get_messages,
     handlers::message::update_message,
     handlers::message::delete_message,
-    handlers::user::add_user_docs
+    handlers::user::add_user_docs,
+    handlers::file::upload_file,
+    handlers::file::serve_file
     
   ),
   components(schemas(
@@ -102,10 +103,14 @@ pub fn init_router() -> Router<Arc<AppState>> {
     .route("/group-detail/:group_id", get(handlers::group::get_group_detail_with_extra_info))
     .route("/group-detail/setting/:gr_id", get(handlers::group::get_gr_setting_v1))
     .route("/add-user-doc", post(handlers::user::add_user_docs))
+    .route("/files", post(handlers::file::upload_file))
+    .route("/files/:filename", get(handlers::file::serve_file))
     .route("/ws", any(handlers::socket::handler::ws_handler))
     .fallback(handlers::common::fallback)
     .merge(get_swagger_ui())
     .layer(TraceLayer::new_for_http())
     .layer(cors)
     .layer(TimeoutLayer::new(Duration::from_secs(10)))
+    .layer(DefaultBodyLimit::disable())
+    .layer(RequestBodyLimitLayer::new(10* 1024 * 1024))
 }
