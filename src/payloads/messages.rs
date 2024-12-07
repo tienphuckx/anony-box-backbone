@@ -1,5 +1,5 @@
 use crate::database::models::{Message, MessageStatus, MessageTypeEnum};
-use crate::utils::minors::custom_serde::*;
+use crate::utils::custom_serde::*;
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;

@@ -7,7 +7,7 @@ pub enum DBError {
   #[error("Failed to query from database {}", 0)]
   QueryError(String),
 
-  #[error("Failed to get a connection: {0}")]
+  #[error("Failed to get a connection: {}", 0.to_string())]
   ConnectionError(#[from] r2d2::Error),
 
   #[error("Constraint violation: {0}")]
@@ -65,6 +65,9 @@ pub enum ApiError {
   #[error("The current user doesn't have right to access the resource")]
   Unauthorized,
 
+  #[error("The request is missing {0}")]
+  MissingField(String),
+
   #[error("Unknown error")]
   Unknown,
 }
@@ -82,6 +85,7 @@ impl IntoResponse for ApiError {
       Self::ExistedResource(_) => (StatusCode::BAD_REQUEST, self.to_string()),
       Self::Forbidden => (StatusCode::FORBIDDEN, self.to_string()),
       Self::Unauthorized => (StatusCode::UNAUTHORIZED, self.to_string()),
+      Self::MissingField(_) => (StatusCode::BAD_REQUEST, self.to_string()),
       // Yes we want to hide internal message error from user
       err => {
         tracing::error!("Error Cause: {}", err.to_string());

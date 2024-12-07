@@ -41,7 +41,7 @@ async fn main() {
   let server_port = if let Ok(value) = env::var("SERVER_PORT") {
     value.parse::<u16>().expect("Server port must be a number")
   } else {
-    8091
+    8080
   };
 
   let pool_size = if let Ok(value) = env::var("MAXIMUM_POOL_SIZE") {
