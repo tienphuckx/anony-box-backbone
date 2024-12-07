@@ -1,4 +1,4 @@
-use std::env;
+use std::{env, path::PathBuf};
 
 use axum_extra::extract::CookieJar;
 use chrono::Utc;
@@ -51,4 +51,17 @@ pub fn get_server_url() -> String {
     DEFAULT_SERVER_PORT
   };
   format!("{proto}://{server_addr}:{server_port}", proto = "http")
+}
+
+pub fn guess_mime_type_from_path(path: PathBuf) -> String {
+  match path.extension().and_then(|ext| ext.to_str()) {
+    Some("html") => "text/html",
+    Some("css") => "text/css",
+    Some("js") => "application/javascript",
+    Some("png") => "image/png",
+    Some("jpg") | Some("jpeg") => "image/jpeg",
+    Some("gif") => "image/gif",
+    _ => "application/octet-stream",
+  }
+  .to_string()
 }

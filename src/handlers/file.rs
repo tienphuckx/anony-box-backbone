@@ -2,7 +2,7 @@ use crate::{
   errors::{ApiError, DBError},
   extractors::UserToken,
   payloads::minors::FileResponse,
-  utils::minors::{generate_file_name_with_timestamp, get_server_url},
+  utils::minors::{generate_file_name_with_timestamp, get_server_url, guess_mime_type_from_path},
   AppState, UPLOADS_DIRECTORY,
 };
 use axum::{
@@ -22,7 +22,7 @@ use tokio::{
 use tokio_util::io::{ReaderStream, StreamReader};
 use utoipa::ToSchema;
 
-/// Handler to serve static files efficiently with streaming
+///### Handler to serve static files efficiently with streaming
 #[utoipa::path(
   get,
   path = "/files/{filename}",
@@ -45,15 +45,7 @@ pub async fn serve_file(Path(filename): Path<String>) -> Response {
       let body = Body::from_stream(stream);
 
       // Determine the content type
-      let content_type = match file_path.extension().and_then(|ext| ext.to_str()) {
-        Some("html") => "text/html",
-        Some("css") => "text/css",
-        Some("js") => "application/javascript",
-        Some("png") => "image/png",
-        Some("jpg") | Some("jpeg") => "image/jpeg",
-        Some("gif") => "image/gif",
-        _ => "application/octet-stream",
-      };
+      let content_type = guess_mime_type_from_path(file_path);
 
       // Build and return the response
       Response::builder()
@@ -75,7 +67,7 @@ pub struct UploadFile {
   pub file: Vec<u8>,
 }
 
-/// Handler to upload a file to server
+/// ### Handler to upload a file to server
 #[utoipa::path(
     post,
     params(
@@ -104,7 +96,7 @@ pub async fn upload_file(
   loop {
     let next_field = multipart.next_field().await;
     if let Err(ref err) = next_field {
-      tracing::error!("multipart error: {}", err.to_string());
+      tracing::debug!("No more next multipart field : {}", err.to_string());
       break;
     }
     if let Some(field) = next_field.unwrap() {
