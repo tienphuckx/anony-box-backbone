@@ -1,6 +1,6 @@
 use crate::database::models::{Message, MessageStatus, MessageTypeEnum, NewMessage};
 
-use crate::payloads::messages::UpdateMessage;
+use crate::payloads::messages::{AttachmentPayload, UpdateMessage};
 use crate::utils::custom_serde::*;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -78,7 +78,7 @@ pub enum SMessageType {
   UnSupportMessage(String),
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct SMessageContent {
   pub message_uuid: Uuid,
   pub message_id: i32,
@@ -87,6 +87,7 @@ pub struct SMessageContent {
   pub content: String,
   pub username: Option<String>,
   pub message_type: MessageTypeEnum,
+  pub attachments: Option<Vec<AttachmentPayload>>,
   #[serde(
     serialize_with = "serialize_with_date_time_utc",
     deserialize_with = "deserialize_with_date_time_utc"
@@ -108,6 +109,7 @@ impl From<Message> for SMessageContent {
       username: None,
       group_id: value.group_id,
       message_type: value.message_type,
+      attachments: None,
       content: value.content.unwrap_or_default(),
       created_at: value.created_at.and_utc(),
       updated_at: value.updated_at.map(|data| data.and_utc()),
@@ -116,12 +118,13 @@ impl From<Message> for SMessageContent {
   }
 }
 
-#[derive(Serialize, Clone, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Clone, Deserialize, Debug)]
 pub struct SNewMessage {
   pub message_uuid: Uuid,
   pub group_id: i32,
   pub message_type: Option<MessageTypeEnum>,
-  pub content: String,
+  pub content: Option<String>,
+  pub attachments: Option<Vec<AttachmentPayload>>,
 }
 
 impl<'a> SNewMessage {
@@ -135,7 +138,7 @@ impl<'a> SNewMessage {
       message_uuid: self.message_uuid,
       user_id,
       group_id: self.group_id,
-      content: Some(&self.content),
+      content: self.content.as_ref(),
       status: MessageStatus::Sent,
       created_at: Utc::now().naive_utc(),
       message_type,

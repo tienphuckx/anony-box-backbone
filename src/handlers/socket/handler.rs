@@ -5,10 +5,13 @@ use crate::{
     connections::{self, send_message_event_to_group, CLIENT_SESSIONS},
     structs::ClientSession,
   },
-  payloads::socket::{
-    common::ResultMessage,
-    message::{
-      AuthenticationStatusCode, MessagesData, SMessageContent, SMessageEdit, SMessageType,
+  payloads::{
+    messages::AttachmentPayload,
+    socket::{
+      common::ResultMessage,
+      message::{
+        AuthenticationStatusCode, MessagesData, SMessageContent, SMessageEdit, SMessageType,
+      },
     },
   },
   services::{
@@ -399,7 +402,34 @@ fn process_send_message(
       if insertion_rs.is_err() {
         return Some(ControlFlow::Break(()));
       }
-      let mut message_content = SMessageContent::from(insertion_rs.unwrap());
+      let inserted_message = insertion_rs.unwrap();
+      let mut inserted_attachment_payloads = None;
+      if let Some(attachments) = s_new_message.attachments {
+        let new_attachments = attachments
+          .iter()
+          .map(|e| AttachmentPayload::into_new(e, inserted_message.id))
+          .collect();
+
+        match services::attachment::create_attachments(conn, new_attachments) {
+          Ok(inserted_attachments) => {
+            inserted_attachment_payloads = Some(
+              inserted_attachments
+                .iter()
+                .map(|e| AttachmentPayload::from(e.clone()))
+                .collect::<Vec<AttachmentPayload>>(),
+            );
+          }
+          Err(err) => {
+            tracing::error!(
+              "Failed to create new attachments of message id {}: {} ",
+              inserted_message.id,
+              err.to_string()
+            )
+          }
+        }
+      }
+      let mut message_content = SMessageContent::from(inserted_message);
+      message_content.attachments = inserted_attachment_payloads;
       message_content.username = Some(client_session.username.clone());
       let send_rs = connections::send_message_event_to_group(
         conn,

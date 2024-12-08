@@ -1,13 +1,16 @@
 use chrono::{NaiveDateTime, NaiveTime, Utc};
 use diesel::{
-  pg::Pg, BoolExpressionMethods, ExpressionMethods, JoinOnDsl, OptionalExtension, QueryDsl,
-  RunQueryDsl, SelectableHelper, TextExpressionMethods,
+  pg::Pg, prelude::Queryable, BoolExpressionMethods, ExpressionMethods, JoinOnDsl,
+  NullableExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl, SelectableHelper,
+  TextExpressionMethods,
 };
+use uuid::Uuid;
 
 use crate::{
   database::{
-    models::{self, Message, MessageStatus, NewMessage},
+    models::{self, AttachmentTypeEnum, Message, MessageStatus, MessageTypeEnum, NewMessage},
     schema::{
+      self, attachments,
       messages::{self},
       users,
     },
@@ -15,7 +18,9 @@ use crate::{
   errors::DBError,
   payloads::{
     common::PageRequest,
-    messages::{MessageFilterParams, MessageSortParams, MessageWithUser, UpdateMessage},
+    messages::{
+      AttachmentPayload, MessageFilterParams, MessageSortParams, MessageWithUser, UpdateMessage,
+    },
   },
   PoolPGConnectionType,
 };
@@ -35,6 +40,23 @@ pub fn create_new_message(
     })?;
   Ok(message)
 }
+
+#[derive(Queryable, Debug, Clone)]
+pub struct MessageWithAttachmentRaw {
+  pub message_uuid: Uuid,
+  pub id: i32,
+  pub content: Option<String>,
+  pub message_type: MessageTypeEnum,
+  pub status: MessageStatus,
+  pub created_at: NaiveDateTime,
+  pub updated_at: Option<NaiveDateTime>,
+  pub user_id: i32,
+  pub user_name: String,
+  pub attachment_id: Option<i32>,
+  pub url: Option<String>,
+  pub attachment_type: Option<AttachmentTypeEnum>,
+}
+
 pub fn get_messages(
   conn: &mut PoolPGConnectionType,
   group_id: i32,
@@ -42,9 +64,7 @@ pub fn get_messages(
   message_filters: &MessageFilterParams,
   message_sorts: MessageSortParams,
 ) -> Result<Vec<MessageWithUser>, DBError> {
-  let mut query = messages::table
-    .inner_join(users::table.on(users::id.eq(messages::user_id)))
-    .into_boxed();
+  let mut query = messages::table.into_boxed();
 
   query = query.filter(messages::group_id.eq(group_id));
 
@@ -79,19 +99,26 @@ pub fn get_messages(
   }
   tracing::debug!("{}", diesel::debug_query::<Pg, _>(&query));
 
-  let messages_rs = query
+  let raw_results: Vec<MessageWithAttachmentRaw> = query
+    .inner_join(users::table.on(users::id.eq(messages::user_id)))
+    .left_join(
+      schema::attachments::table.on(schema::messages::id.eq(schema::attachments::message_id)),
+    )
     .select((
       messages::message_uuid,
       messages::id,
-      messages::content,
+      messages::content.nullable(),
       messages::message_type,
       messages::status,
       messages::created_at,
       messages::updated_at,
       messages::user_id,
       users::username,
+      attachments::id.nullable(),
+      attachments::url.nullable(),
+      attachments::attachment_type.nullable(),
     ))
-    .load::<MessageWithUser>(conn)
+    .load::<MessageWithAttachmentRaw>(conn)
     .map_err(|err| {
       tracing::error!(
         "Failed to load messages for group_id {}: {:?}",
@@ -101,7 +128,36 @@ pub fn get_messages(
       DBError::QueryError(format!("Error loading messages: {:?}", err))
     })?;
 
-  Ok(messages_rs)
+  let rs = map_raw_messages_to_payload(raw_results);
+  Ok(rs)
+}
+
+fn map_raw_messages_to_payload(raw_results: Vec<MessageWithAttachmentRaw>) -> Vec<MessageWithUser> {
+  let mut grouped_messages: std::collections::HashMap<i32, MessageWithUser> =
+    std::collections::HashMap::new();
+
+  for ref row in raw_results {
+    let entry = grouped_messages.entry(row.id).or_insert_with(|| {
+      let mut message = MessageWithUser::from(row.clone());
+      message.attachments = Some(Vec::new());
+      message
+    });
+
+    // If the row has an attachment, add it to the message's attachments
+    if let Some(attachment_id) = row.attachment_id {
+      entry.attachments.as_mut().unwrap().push(AttachmentPayload {
+        id: attachment_id,
+        url: row.url.clone().unwrap_or_default(),
+        attachment_type: row.attachment_type.clone().unwrap_or_default(),
+      });
+    }
+  }
+
+  let rs: Vec<MessageWithUser> = grouped_messages
+    .values()
+    .map(|value| value.clone())
+    .collect();
+  rs
 }
 
 pub fn get_count_messages(
@@ -153,23 +209,29 @@ pub fn get_latest_messages_from_group(
   group_id: i32,
 ) -> Result<Vec<MessageWithUser>, DBError> {
   // Fetch messages (limit to latest messages if needed)
-  let latest_messages = messages::table
+  let raw_results = messages::table
     .filter(messages::group_id.eq(group_id))
     .inner_join(users::table.on(users::id.eq(messages::user_id)))
+    .left_join(
+      schema::attachments::table.on(schema::messages::id.eq(schema::attachments::message_id)),
+    )
     .order(messages::created_at.asc())
     .limit(10)
     .select((
       messages::message_uuid,
       messages::id,
-      messages::content,
+      messages::content.nullable(),
       messages::message_type,
       messages::status,
       messages::created_at,
       messages::updated_at,
       messages::user_id,
       users::username,
+      attachments::id.nullable(),
+      attachments::url.nullable(),
+      attachments::attachment_type.nullable(),
     ))
-    .load::<MessageWithUser>(conn)
+    .load::<MessageWithAttachmentRaw>(conn)
     .map_err(|err| {
       tracing::error!(
         "Failed to load messages for group_id {}: {:?}",
@@ -178,7 +240,9 @@ pub fn get_latest_messages_from_group(
       );
       DBError::QueryError(format!("Error loading messages: {:?}", err))
     })?;
-  Ok(latest_messages)
+
+  let rs = map_raw_messages_to_payload(raw_results);
+  Ok(rs)
 }
 
 pub fn delete_message(conn: &mut PoolPGConnectionType, message_id: i32) -> Result<bool, DBError> {

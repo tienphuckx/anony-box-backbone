@@ -1,3 +1,4 @@
-pub mod group;
-pub mod message;
-pub mod user;
+pub(crate) mod attachment;
+pub(crate) mod group;
+pub(crate) mod message;
+pub(crate) mod user;
