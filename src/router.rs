@@ -14,10 +14,7 @@ use crate::{
   handlers,
   payloads::{
     common::{OrderBy, CommonResponse, ListResponse},
-    groups::{DelGroupRequest, DelGroupResponse, GrDetailSettingResponse
-      , GroupInfo, GroupListResponse, NewGroupForm, RmUserRequest, RmUserResponse, WaitingListResponse
-    }
-    , messages::{MessageWithUser, SendMessageRequest, SendMessageResponse, MessageResponse}, user::{NewUserRequest, UserResponse}
+    groups::*, messages::*, user::{NewUserRequest, UserResponse}
   },
   AppState,
 };
@@ -54,6 +51,7 @@ use crate::{
     DelGroupRequest, DelGroupResponse,
     GrDetailSettingResponse, 
     SendMessageRequest, SendMessageResponse,
+    AttachmentPayload,
     MessageResponse,
     ListResponse<MessageWithUser>,
     RmUserRequest, RmUserResponse

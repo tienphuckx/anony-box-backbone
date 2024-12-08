@@ -1,18 +1,57 @@
-use crate::database::models::{Message, MessageStatus, MessageTypeEnum};
+use crate::database::models::{
+  Attachment, AttachmentTypeEnum, Message, MessageStatus, MessageTypeEnum, NewAttachment,
+};
+use crate::services::message::MessageWithAttachmentRaw;
 use crate::utils::custom_serde::*;
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
-// Request structure for sending a message
 
+#[derive(Serialize, Deserialize, ToSchema, Debug, Clone)]
+pub struct AttachmentPayload {
+  #[serde(default = "i32::default")]
+  pub id: i32,
+  pub url: String,
+  #[serde(default = "AttachmentTypeEnum::default")]
+  pub attachment_type: AttachmentTypeEnum,
+}
+
+impl From<Attachment> for AttachmentPayload {
+  fn from(value: Attachment) -> Self {
+    Self {
+      id: value.id,
+      url: value.url,
+      attachment_type: value.attachment_type,
+    }
+  }
+}
+
+impl<'a> AttachmentPayload {
+  pub fn into_new(&'a self, message_id: i32) -> NewAttachment<'a> {
+    NewAttachment {
+      url: &self.url,
+      message_id,
+      attachment_type: self.attachment_type.clone(),
+    }
+  }
+}
+
+// Request structure for sending a message
 #[derive(Deserialize, ToSchema)]
 pub struct SendMessageRequest {
   pub message_uuid: Uuid,
   pub group_id: i32,
-  pub content: String,
+  pub content: Option<String>,
   #[serde(default = "MessageTypeEnum::default")]
   pub message_type: MessageTypeEnum,
+  pub attachments: Option<Vec<AttachmentPayload>>,
+}
+
+impl SendMessageResponse {
+  pub fn set_attachment(&mut self, attachments: Vec<AttachmentPayload>) {
+    self.attachments = Some(attachments)
+  }
 }
 
 // Response structure for sending a message
@@ -25,6 +64,7 @@ pub struct SendMessageResponse {
   pub status: MessageStatus,
   #[serde(serialize_with = "serialize_with_date_time_utc")]
   pub created_at: DateTime<Utc>,
+  pub attachments: Option<Vec<AttachmentPayload>>,
 }
 
 impl From<Message> for SendMessageResponse {
@@ -36,6 +76,7 @@ impl From<Message> for SendMessageResponse {
       message_type: value.message_type,
       status: value.status,
       created_at: value.created_at.and_utc(),
+      attachments: None,
     }
   }
 }
@@ -51,6 +92,7 @@ pub struct MessageResponse {
   pub id: i32,
   pub content: Option<String>,
   pub message_type: MessageTypeEnum,
+  pub attachments: Option<Vec<AttachmentPayload>>,
   pub status: MessageStatus,
   #[serde(serialize_with = "serialize_naive_datetime")]
   pub created_at: NaiveDateTime,
@@ -66,6 +108,7 @@ impl From<Message> for MessageResponse {
       id: value.id,
       content: value.content,
       message_type: value.message_type,
+      attachments: None,
       status: value.status,
       created_at: value.created_at,
       updated_at: value.updated_at,
@@ -81,12 +124,13 @@ pub struct GetMessagesResponse {
   pub messages: Vec<MessageResponse>,
 }
 
-#[derive(Queryable, Serialize, Debug, ToSchema)]
+#[derive(Queryable, Serialize, Debug, Clone, ToSchema)]
 pub struct MessageWithUser {
   pub message_uuid: Uuid,
   pub id: i32,
   pub content: Option<String>,
   pub message_type: MessageTypeEnum,
+  pub attachments: Option<Vec<AttachmentPayload>>,
   pub status: MessageStatus,
   #[serde(serialize_with = "serialize_naive_datetime")]
   pub created_at: NaiveDateTime,
@@ -94,6 +138,23 @@ pub struct MessageWithUser {
   pub updated_at: Option<NaiveDateTime>,
   pub user_id: i32,
   pub user_name: String,
+}
+
+impl From<MessageWithAttachmentRaw> for MessageWithUser {
+  fn from(value: MessageWithAttachmentRaw) -> Self {
+    Self {
+      message_uuid: value.message_uuid,
+      id: value.id,
+      content: value.content,
+      message_type: value.message_type,
+      attachments: None,
+      status: value.status,
+      created_at: value.created_at,
+      updated_at: value.updated_at,
+      user_id: value.user_id,
+      user_name: value.user_name,
+    }
+  }
 }
 
 #[derive(Deserialize)]

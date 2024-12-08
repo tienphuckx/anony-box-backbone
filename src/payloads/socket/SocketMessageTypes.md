@@ -45,7 +45,18 @@ Structure of the "Send" message, used by a client to send a message to a group.
   "Send": {
     "message_uuid": "550e8400-e29b-41d4-a716-446655440000",
     "group_id": 24,
-    "content": "Hello, World!"
+    "content": "Hello, World!",
+    "message_type": "ATTACHMENT",
+    "attachments": [
+      {
+        "attachment_type": "TEXT",
+        "url": "http://127.0.0.1:8080/files/readme.md"
+      },
+      {
+        "attachment_type": "IMAGE",
+        "url": "http://127.0.0.1:8080/files/avatar.png"
+      }
+    ],
   }
 }
 ```
@@ -64,6 +75,19 @@ When a new message is sent to a group, the server sends a "Receive" message to a
     "group_id": 25,
     "content": "Hello world",
     "created_at": "2024-11-12T07:32:25.455274+00:00",
+    "message_type": "ATTACHMENT",
+    "attachments": [
+      {
+        "attachment_type": "TEXT",
+        "id": 2,
+        "url": "http://127.0.0.1:8080/files/readme.md"
+      },
+      {
+        "attachment_type": "IMAGE",
+        "id": 3,
+        "url": "http://127.0.0.1:8080/files/avatar.png"
+      }
+    ],
     "status": "Sent"
   }
 }
