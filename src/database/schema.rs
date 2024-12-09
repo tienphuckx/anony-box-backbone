@@ -21,8 +21,8 @@ diesel::table! {
     attachments (id) {
         id -> Int4,
         #[max_length = 255]
-        url -> Nullable<Varchar>,
-        attachment_type -> Nullable<Attachmenttype>,
+        url -> Varchar,
+        attachment_type -> Attachmenttype,
         message_id -> Int4,
     }
 }
@@ -36,9 +36,9 @@ diesel::table! {
         group_code -> Varchar,
         user_id -> Int4,
         approval_require -> Nullable<Bool>,
+        maximum_members -> Nullable<Int4>,
         created_at -> Nullable<Timestamp>,
         expired_at -> Nullable<Timestamp>,
-        maximum_members -> Nullable<Int4>,
     }
 }
 

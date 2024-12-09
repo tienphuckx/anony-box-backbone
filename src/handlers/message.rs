@@ -2,7 +2,7 @@ use crate::database::models::{ MessageStatus, MessageTypeEnum, NewMessage};
 use crate::errors::{ApiError, DBError};
 use crate::extractors::UserToken;
 use crate::payloads::common::{ListResponse, PageRequest, OrderBy};
-use crate::payloads::messages::{ MessageFilterParams, MessageResponse, MessageSortParams, MessageWithUser, UpdateMessage};
+use crate::payloads::messages::{ AttachmentPayload, MessageFilterParams, MessageResponse, MessageSortParams, MessageWithUser, UpdateMessage};
 use crate::payloads::messages::{SendMessageRequest, SendMessageResponse};
 use crate::utils::minors::calculate_total_pages;
 use crate::{services, AppState};
@@ -40,6 +40,12 @@ use super::common::check_user_exists;
             "group_id" : 32,
             "message_type": "TEXT",
             "message_uuid": "ff0e32e2-ab5e-4ef7-8dec-93668270ab8c",
+            "attachments": [
+              {
+                "url": "http://127.0.0.1:8080/files/readme.md",
+                "attachment_type": "TEXT"
+              }
+            ]
           }
         )),
     )
@@ -71,7 +77,7 @@ pub async fn send_msg(
   // Insert the text message into `messages`
   let new_message = NewMessage {
     message_uuid: msg_request.message_uuid,
-    content: Some(msg_request.content.as_str()), // Convert String to &str
+    content: msg_request.content.as_ref(), // Convert String to &str
     message_type: msg_request.message_type,
     status: MessageStatus::Sent,
     created_at: Utc::now().naive_utc(),
@@ -81,10 +87,16 @@ pub async fn send_msg(
 
   let inserted_message = services::message::create_new_message(conn, new_message)
     .map_err(|_| ApiError::new_database_query_err("Failed to insert new message"))?;
-
+  let message_id = inserted_message.id;
+  let mut response = SendMessageResponse::from(inserted_message);
+  // Insert attachment if the message payload has attachments
+  if let Some(attachments) = msg_request.attachments {
+    let new_attachments = attachments.iter()
+    .map(|e|AttachmentPayload::into_new(e, message_id)).collect();
+    let inserted_attachments = services::attachment::create_attachments(conn, new_attachments).map_err(ApiError::DatabaseError)?;
+    response.set_attachment(inserted_attachments.iter().map(|e| AttachmentPayload::from(e.clone())).collect());
+  }
   // Prepare the response
-  let response = SendMessageResponse::from(inserted_message);
-
   Ok(Json(response))
 }
 
@@ -117,23 +129,49 @@ pub async fn send_msg(
                 "objects": [
                   {
                     "message_uuid": "16b7bedb-92c4-4888-a2fc-b01b5776e897",
-                    "id": 6,
+                    "id": 1,
                     "content": "This is test message 1",
                     "message_type": "TEXT",
+                    "attachments": [],
                     "status": "Sent",
                     "created_at": "2012-12-12 12:12:12",
                     "user_id": 44,
                     "user_name": "Linus Torvalds"
                   },
                   {
-                    "message_uuid": "ff0e32e2-ab5e-4ef7-8dec-93668270ab8c",
-                    "id": 7,
-                    "content": "This is test message 2",
-                    "message_type": "TEXT",
+                    "message_uuid": "bf0e32e2-ab5e-4ef7-8dec-93668270ab8c",
+                    "id": 2,
+                    "content": "This is new message 2",
+                    "message_type": "ATTACHMENT",
+                    "attachments": [
+                      {
+                        "id": 2,
+                        "url": "http://127.0.0.1:8080/files/readme.md",
+                        "attachment_type": "TEXT"
+                      },
+                      {
+                        "id": 3,
+                        "url": "http://127.0.0.1:8080/files/avatar.png",
+                        "attachment_type": "IMAGE"
+                      }
+                    ],
                     "status": "Sent",
-                    "created_at": "2012-12-12 12:12:12",
-                    "user_id": 44,
-                    "user_name": "Linus Torvalds"
+                    "created_at": "2024-12-08T07:34:57.120623+00:00",
+                    "updated_at": null,
+                    "user_id": 2,
+                    "user_name": "tienphuc"
+                  },
+                  {
+                    "message_uuid": "ff0e32e2-ab5e-4ef7-8dec-93668270ab8c",
+                    "id": 3,
+                    "content": "This is update message 3",
+                    "message_type": "TEXT",
+                    "attachments": [],
+                    "status": "Sent",
+                    "created_at": "2024-11-16T06:51:52.784529+00:00",
+                    "updated_at": "2024-11-16T06:59:47.420978+00:00",
+                    "user_id": 1,
+                    "user_name": "linhnguyen"
                   },
                 ]
               }
@@ -167,6 +205,7 @@ pub async fn get_messages(
   let messages =
     services::message::get_messages(conn, group_id, &page_request, &message_filters, message_sorts)
       .map_err(ApiError::DatabaseError)?;
+  
   let message_count = services::message::get_count_messages(conn, group_id, message_filters).map_err(ApiError::DatabaseError)?;
   let total_pages = calculate_total_pages(message_count as u64, page_request.get_per_page() as u64) as u16;
   let list_response = ListResponse {
@@ -190,7 +229,7 @@ pub async fn get_messages(
     ("message_id" = u32, Path, description = "id of the group"),
   ),
   responses(
-      (status = 201, description = "Delete message successfully"),
+      (status = 204, description = "Delete message successfully"),
       (status = 403, description = "The current user doesn't have permission to access the resource"),
       (status = 401, description = "The current user doesn't have right to access the resource"),
       (status = 500, description = "Database error")
